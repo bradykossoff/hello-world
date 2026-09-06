@@ -4,3 +4,6 @@
 *.rbxl.lock
 *.rbxlx.lock
 .DS_Store
+
+# git worktrees created by agents
+.claude/worktrees/
