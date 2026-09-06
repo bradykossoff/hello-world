@@ -261,7 +261,10 @@ for _, plot in ipairs(plotsFolder:GetChildren()) do
 	-- Give every unclaimed plot a Stage 1 building at boot so the hub isn't
 	-- full of empty lots (assignPlot / releasePlot rebuild it from there).
 	if (plot:GetAttribute("OwnerUserId") or 0) == 0 then
-		KitchenBuilder.SetStage(plot, 1)
+		local ok, err = pcall(KitchenBuilder.SetStage, plot, 1)
+		if not ok then
+			warn("PlotManager: failed to build " .. plot.Name .. ": " .. tostring(err))
+		end
 	end
 end
 

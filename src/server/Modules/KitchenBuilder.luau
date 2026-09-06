@@ -6,7 +6,16 @@ local UpgradeCatalog = require(ReplicatedStorage.Data.UpgradeCatalog)
 local KitchenBuilder = {}
 
 local MAX_STAGE = UpgradeCatalog.KitchenStage.MaxLevel
-local stagesFolder = ServerStorage:WaitForChild("RestaurantStages")
+
+-- Looked up lazily (not at module load) so a missing folder never infinite-
+-- yields the require and takes PlotManager down with it.
+local function getStagesFolder()
+	local folder = ServerStorage:FindFirstChild("RestaurantStages")
+	if not folder then
+		folder = ServerStorage:WaitForChild("RestaurantStages", 15)
+	end
+	return folder
+end
 
 local function clearOccupied(model)
 	local tables = model:FindFirstChild("Tables")
@@ -26,6 +35,12 @@ end
 -- released plot is reset to a clean Stage 1 for the next owner.
 function KitchenBuilder.SetStage(plot, stage)
 	stage = math.clamp(math.floor(tonumber(stage) or 1), 1, MAX_STAGE)
+
+	local stagesFolder = getStagesFolder()
+	if not stagesFolder then
+		warn("KitchenBuilder: ServerStorage.RestaurantStages is missing - is Rojo synced? (check ServerStorage in the Explorer)")
+		return
+	end
 
 	local master = stagesFolder:FindFirstChild("Stage" .. stage)
 	if not master then
