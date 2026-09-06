@@ -1,0 +1,32 @@
+{
+  "name": "eattheworld",
+  "tree": {
+    "$className": "DataModel",
+
+    "ServerScriptService": {
+      "$path": "src/server"
+    },
+
+    "ReplicatedStorage": {
+      "Data": {
+        "$path": "src/shared/Data"
+      },
+      "Remotes": {
+        "$className": "Folder",
+        "RevealFood": { "$className": "RemoteEvent" },
+        "Notify": { "$className": "RemoteEvent" },
+        "TeleportToPlaza": { "$className": "RemoteEvent" },
+        "OpenUpgradePanel": { "$className": "RemoteEvent" },
+        "PurchaseUpgrade": { "$className": "RemoteEvent" },
+        "AddFoodToMenu": { "$className": "RemoteEvent" },
+        "RemoveMenuItem": { "$className": "RemoteEvent" }
+      }
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$path": "src/client"
+      }
+    }
+  }
+}

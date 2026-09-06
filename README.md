@@ -1,7 +1,8 @@
-# Roblox Dev Workstation
+# Eat the World — Roblox restaurant tycoon
 
-A Claude Code workstation for building Roblox games with a team of
-specialized AI subagents instead of one generalist.
+Claim a plot, stock a menu of rarity-rolled food, serve customers, upgrade
+your restaurant. Built with a team of specialized Claude Code subagents
+(`.claude/agents/`) — see `CLAUDE.md` for how they divide the work.
 
 ## The team (`.claude/agents/`)
 
@@ -13,6 +14,39 @@ specialized AI subagents instead of one generalist.
 | `roblox-monetization` | Game passes, dev products, economy balance, policy |
 | `roblox-qa` | Test plans, exploit/edge-case review, performance review |
 
-See `CLAUDE.md` for how the team collaborates and the project's Luau/Rojo
-conventions. There's no game here yet — this is the workstation it'll be
-built in.
+## Project layout
+
+Code is synced into Studio with Rojo. `default.project.json` maps:
+
+| Source | Studio location |
+|---|---|
+| `src/server/` | `ServerScriptService` (systems + `Modules/`) |
+| `src/client/` | `StarterPlayer.StarterPlayerScripts` (UI controllers) |
+| `src/shared/Data/` | `ReplicatedStorage.Data` (catalogs, food defs, rarity table) |
+| *(project.json)* | `ReplicatedStorage.Remotes` (RemoteEvents, declared in the project file) |
+
+**What Rojo does NOT manage:** the built world — `Workspace.Plots`,
+`Workspace.Hub`, `Workspace.Destinations`, `Lighting`, etc. That geometry
+lives only in `eattheworld.rbxl` (committed as the source of record until
+it moves to real art). `docs/place-structure.txt` is a snapshot of that
+hierarchy. `scripts/extract.luau` re-extracts scripts from a place file
+(`lune run scripts/extract eattheworld.rbxl`).
+
+## Studio syncing (Rojo)
+
+Toolchain is pinned in `rokit.toml`. On a fresh machine:
+
+```
+rokit install          # installs Rojo + Lune (needs Rokit: winget install Rojo.Rokit)
+rojo plugin install    # installs the Rojo plugin into Roblox Studio
+```
+
+Day-to-day:
+
+```
+rojo serve             # serves default.project.json on localhost:34872
+```
+
+Open `eattheworld.rbxl` in Studio, open the **Rojo** panel, click
+**Connect**. Files under `src/` are the source of truth — one-way sync
+pushes them into the place (leave Two-Way Sync **off**).
