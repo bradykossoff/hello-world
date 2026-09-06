@@ -2,7 +2,11 @@
 
 **Game:** Eat the World (Roblox restaurant tycoon)
 **Status:** Redesign of the current procedural `KitchenBuilder`. Real commissioned art incoming.
-**Owners:** modeler (builds the stage models), roblox-scripter (rebuilds `KitchenBuilder`), roblox-ui-artist (billboards / seat-state read).
+
+This doc is the finished design: every stage layout, marker, coordinate, and
+code contract below is decided. Build straight from it — there is nothing left
+to spec. Section 3b is a literal build order for the graybox that ships now and
+that the commissioned art drops into 1:1.
 
 ---
 
@@ -41,7 +45,7 @@ ServerStorage/
     Stage3  (Model)   -- Grand Kitchen
 ```
 
-Each plot gets one build slot. **Rename the per-plot child `Stage1Building` → `Restaurant`** (it is no longer "stage 1"). This touches three files — hand to roblox-scripter:
+Each plot gets one build slot. **Rename the per-plot child `Stage1Building` → `Restaurant`** (it is no longer "stage 1"). This touches three files:
 
 - `src/server/Modules/KitchenBuilder.luau`
 - `src/server/CustomerSystem.server.luau` (`getFreeSeat`, `runCustomerVisit`)
@@ -57,11 +61,11 @@ Entrance position, orientation, and the `BuildAnchor` pivot are **identical acro
 
 | Stage | Name | Tables / Seats | Cook stations | Footprint (guide) | Read-at-a-glance |
 |---|---|---|---|---|---|
-| 1 | Cozy Kitchen | 2 / 4 | 1 (built, may be inert) | ~24 x 24 studs | Wooden shack, single window, hand-painted sign, one stool-height counter. Humble, warm. |
-| 2 | Bigger Kitchen | 3 / 6 | 2 | ~32 x 28 studs | Proper storefront: striped awning, glass front, brick base, small lit sign, a couple of planters. |
-| 3 | Grand Kitchen | 4 / 8 | 2 (+ visible pass window) | ~40 x 32 studs | Full restaurant: bold roofline, neon/emissive sign, outdoor rail, distinct accent color. Reads as "rich" from anywhere in the hub. |
+| 1 | Cozy Kitchen | 2 / 4 | 1 (built, may be inert) | 24 x 24 studs | Wooden shack, single window, hand-painted sign, one stool-height counter. Humble, warm. |
+| 2 | Bigger Kitchen | 3 / 6 | 2 | 34 x 28 studs | Proper storefront: striped awning, glass front, brick base, small lit sign, a couple of planters. |
+| 3 | Grand Kitchen | 4 / 8 | 2 (+ visible pass window) | 44 x 32 studs | Full restaurant: bold roofline, neon/emissive sign, outdoor rail, distinct accent color. Reads as "rich" from anywhere in the hub. |
 
-Footprints are guidance. **Hard constraint:** at Stage 3 the model must fit inside `plot.PlotFloor` with at least a 4-stud margin on every side. The exact `PlotFloor` size is set in the .rbxl — modeler must measure it in Studio before finalizing Stage 3, not guess.
+Footprints are locked in §3b. **Hard constraint:** at Stage 3 the model must fit inside `plot.PlotFloor` with at least a 4-stud margin on every side. The exact `PlotFloor` size is set in the .rbxl — measure it in Studio before finalizing Stage 3 (fallback if it's tight: §3b bottom).
 
 Feel targets:
 
@@ -77,6 +81,101 @@ Keep `MaxLevel = 3` for launch. Design the contract so more stages drop in with 
 - Stage 4 "Double Decker" (5 tables / 10 seats, second floor or L-wing), Stage 5 "Food Hall" (6 tables / 12 seats). Seat-based capacity stays the unit.
 - **Prestige** = cosmetic reset: after Stage 5, "prestige" swaps to a re-skinned Stage 1 with a badge/particle and a prestige counter, loop restarts with a global earnings multiplier. Purely a skin + multiplier layer on top of this same system.
 - Server-load ceiling: customer visits are one coroutine per occupied seat. 6 plots x 12 seats = 72 concurrent walking customer models. That's fine with lerp-based movement, but do not exceed ~12 seats/plot without profiling (roblox-qa).
+
+---
+
+## 3b. Exact graybox layout (build order)
+
+All coordinates are **local to `Base`** (the model's `PrimaryPart` / pivot),
+which `SetStage` places at `plot.BuildAnchor.CFrame`. `+X` = right, `+Z` =
+toward the street (out the entrance), `-Z` = toward the back kitchen wall,
+`+Y` = up. `Base` sits at local origin, its top face at `Y = 0`, so parts
+rest at `Y = halfHeight`.
+
+### Shared across all 3 stages (identical local positions)
+
+| Instance | Class | Local position | Size | Notes |
+|---|---|---|---|---|
+| `Base` | Part | `(0, -0.5, 0)` | `(footprintX, 1, footprintZ)` | Anchored, CanCollide true, invisible-ish floor slab. `footprint` from the table in §3. |
+| `DiningFloor` | Part | `(0, 0.25, 6)` | `(footprintX-4, 0.5, footprintZ-12)` | Walkable. Covers the seating half. |
+| `EntranceMarker` | Part | `(0, 3, footprintZ/2)` | `(6, 6, 1)` | Anchored, CanCollide false, Transparency 1. Centered on the front opening. **`LookVector` = local `+Z` (faces out to the street).** Same in every stage. |
+| `Aisle` / `Aisle1` | Part | `(0, 1, footprintZ/2 - 4)` | `(3, 2, 3)` | Just inside the door. |
+| `Aisle` / `Aisle2` | Part | `(0, 1, 0)` | `(3, 2, 3)` | Dining-room centre. |
+| `Aisle` / `Aisle3` | Part | `(0, 1, -footprintZ/2 + 8)` | `(3, 2, 3)` | Back of the aisle, in front of the kitchen line. |
+| `SignMount` | Attachment | `(0, 7, footprintZ/2)` | – | On the front fascia, above the opening. |
+| `KioskMount` | Part | `(footprintX/2 + 3, 1.5, footprintZ/2 + 2)` | `(2,3,2)` | Reference only; right of the entrance, outside. Transparency 1. |
+
+Aisle nodes are anchored, CanCollide false, Transparency 1. All three are
+present in every stage even though Stage 1's room is short — the pathing code
+walks whichever nodes are between the door and the target table's junction.
+
+### Tables — placement rule
+
+Tables line up along **local X**, evenly spaced, centered on `X = 0`, all at
+`Z = 0` (on `Aisle2`). Spacing = **8 studs** between table centers.
+
+For a stage with `N` tables, table `i` (1-indexed) sits at:
+
+```
+X_i = 8 * ( i - (N + 1) / 2 )
+Z   = 0
+```
+
+| Stage | N | Table X positions |
+|---|---|---|
+| 1 | 2 | `-4, +4` |
+| 2 | 3 | `-8, 0, +8` |
+| 3 | 4 | `-12, -4, +4, +12` |
+
+Per-table children (local to the table model's `Top` primary part):
+
+| Instance | Class | Local position | Size | Notes |
+|---|---|---|---|---|
+| `Top` | Part | table origin, `Y = 3` | `(4, 0.4, 4)` | PrimaryPart. |
+| `Leg` | Part | `(0, -1.4, 0)` | `(1, 2.4, 1)` | |
+| `Chair1` | Part | `(0, -1.5, +2.6)` | `(1.6, 1.6, 1.6)` | Street side of the table. Attribute `Occupied` (bool) = `false`. Front face (`+Z` local) points at `Top`. |
+| `Chair2` | Part | `(0, -1.5, -2.6)` | `(1.6, 1.6, 1.6)` | Kitchen side. Attribute `Occupied` = `false`. Faces `Top`. |
+| `WalkPath` / `Node1` | Part | world-space part at `(X_i, 1, +2)` relative to `Base` | `(2,2,2)` | Aisle-side approach. |
+| `WalkPath` / `Node2` | Part | `(X_i, 1, +3.4)` relative to `Base` | `(2,2,2)` | ~2 studs in front of the table; last node before the chair. |
+
+A customer's route: `EntranceMarker` → `Aisle1` → (`Aisle2` if the table is
+past centre) → table `WalkPath/Node1` → `Node2` → assigned chair. Exit is the
+exact reverse.
+
+### Per-stage kitchen line (local `-Z` wall)
+
+| Stage | Stations | `Station1.Counter` local pos | `Station2.Counter` local pos |
+|---|---|---|---|
+| 1 | 1 | `(0, 1.5, -footprintZ/2 + 3)` | – |
+| 2 | 2 | `(-5, 1.5, -footprintZ/2 + 3)` | `(+5, 1.5, -footprintZ/2 + 3)` |
+| 3 | 2 | `(-6, 1.5, -footprintZ/2 + 3)` | `(+6, 1.5, -footprintZ/2 + 3)` |
+
+Each station: `Counter` Part `(6, 3, 3)`; `StandMarker` Part `(2, 4, 2)` at
+`Counter + (0, 0, +2.5)` (player stands on the dining-room side), anchored /
+CanCollide false / Transparency 1; `PromptMount` Attachment on `Counter` top
+face at `(0, 1.5, 0)`.
+
+### Walls / roof (graybox)
+
+- Back wall (`-Z`): solid, height 10.
+- Side walls (`±X`): solid, height 10.
+- Front (`+Z`): **open** above `Y = 3` — a 3-stud knee wall on each side of a
+  6-stud-wide entrance gap centered on `X = 0`, then open to the roof.
+- Roof: flat slab on posts at `Y = 11`, `footprintX × footprintZ`, overhang 2
+  studs on all sides. Give each stage a different roof color + one accent part
+  so the stage reads from hub distance (§6).
+
+### Stage footprints (locked)
+
+| Stage | footprintX | footprintZ |
+|---|---|---|
+| 1 | 24 | 24 |
+| 2 | 34 | 28 |
+| 3 | 44 | 32 |
+
+Confirm Stage 3 (`44 × 32`) fits inside `plot.PlotFloor` with ≥4 studs margin
+per side against the real `.rbxl`; if `PlotFloor` is smaller, shrink side-wall
+thickness and drop table spacing to 7 before moving the entrance.
 
 ---
 
@@ -158,13 +257,13 @@ Attribute conventions:
 
 ## 5. Edge cases
 
-- **Upgrade mid-service.** `SetStage` destroys `Restaurant`, so chairs and customer models under it vanish. Every customer-visit coroutine must null-check its `chair`, `table`, and `customer` each step (walk loop, post-eat payout) and abort cleanly if any is gone or de-parented. Owner gets no payout for an evicted customer — acceptable, upgrades are rare and player-initiated. (Hand this guard to roblox-scripter as part of the `CustomerSystem` pass.)
+- **Upgrade mid-service.** `SetStage` destroys `Restaurant`, so chairs and customer models under it vanish. Every customer-visit coroutine must null-check its `chair`, `table`, and `customer` each step (walk loop, post-eat payout) and abort cleanly if any is gone or de-parented. Owner gets no payout for an evicted customer — acceptable, upgrades are rare and player-initiated.
 - **`SetStage` before ownership.** `PlotManager` calls it during `assignPlot` before `LoadCharacter`. Model swap must not depend on an owner existing.
 - **Missing stage master.** `warn` and no-op; never leave a plot with no building.
 - **Missing `BuildAnchor`.** `warn`, no-op. Add `BuildAnchor` to all 6 plots in the .rbxl as part of this work.
 - **Stage clamp.** `stage` outside `1..MaxLevel` (bad DataStore value) → clamp to `1..MaxLevel` before lookup.
 - **Player release / plot recycle.** `PlotManager.releasePlot` calls `SetStage(plot, 1)` — full rebuild to a clean Cozy Kitchen with all seats free for the next owner. Menu is cleared separately.
-- **Occupied leak.** If a visit coroutine errors, its chair could stay `Occupied` forever. `SetStage` clearing all `Occupied` on rebuild is the backstop; also add a per-visit `pcall` + cleanup (roblox-scripter).
+- **Occupied leak.** If a visit coroutine errors, its chair could stay `Occupied` forever. `SetStage` clearing all `Occupied` on rebuild is the backstop; also wrap each visit in `pcall` and free the seat in the cleanup path.
 - **WalkPath / Aisle absent on graybox.** Code falls back to a straight entrance→chair lerp. Fine for testing, will clip through walls — real models must ship the folders.
 
 ---
@@ -178,7 +277,7 @@ Roblox audience is mobile-majority on small screens with a default over-the-shou
 - **Seat state must read without UI.** Empty chair = visible empty chair (optionally a soft highlight or "sit" decal). Occupied = a clearly-colored customer model in it. Do not rely on a billboard to tell players a seat is taken.
 - **High-contrast tables/chairs** against the floor so seat count is countable at a glance on a small screen.
 - **Silhouette per stage.** From hub distance a player should identify a plot's stage by roofline + color alone. Give each stage a distinct roof shape and one accent color.
-- **One building billboard** above the roofline (owner name + "Stage N"), large text, `AlwaysOnTop`, readable at hub scale — spec to roblox-ui-artist. This is separate from `plot.SignPost` (the roadside nameplate) and the facade `SignMount`.
+- **One building billboard** above the roofline (owner name + "Stage N"), large text, `AlwaysOnTop`, readable at hub scale. This is separate from `plot.SignPost` (the roadside nameplate) and the facade `SignMount`.
 - **Scale customers to the seats,** not the other way around — current customer torso is `2 x 2.5 x 1`. Chairs and table height must suit that so a seated customer isn't clipping or floating on a phone screen.
 
 ---
@@ -237,10 +336,15 @@ Client vs server:
 
 ---
 
-## Handoffs
+## 10. Build order
 
-- **roblox-scripter:** rebuild `KitchenBuilder.SetStage` (§4), rename `Stage1Building` → `Restaurant` across the 3 files, add customer-coroutine guards (§5), add `stage` clamp. Later: active-cooking station system (§7).
-- **modeler:** 3 stage models to the §4 spec, fit within `PlotFloor` (measure in Studio), open-front readable interiors (§6), `Aisle` + per-table `WalkPath` node folders (§8), inert-but-dressed `KitchenStations` (§7).
-- **roblox-ui-artist:** per-building billboard (owner name + stage), empty-seat highlight/read (§6).
-- **roblox-qa:** stage-model checker, upgrade-mid-service test, concurrent-customer load test at max seats x 6 plots.
-- **roblox-monetization:** later — station cook-multiplier balance, any "instant upgrade" or "extra table" products, must stay server-authoritative.
+Every decision below is made — these are steps, not open questions.
+
+1. **World (.rbxl, Studio):** add `BuildAnchor` to all 6 plots (invisible part, `LookVector` = local `+Z` = toward street, positioned where the building's front-centre sits). Rename each `plot.Stage1Building` → `Restaurant`. Delete the old procedural table children.
+2. **Graybox stage models (.rbxl → `ServerStorage.RestaurantStages`):** build `Stage1`, `Stage2`, `Stage3` exactly to §3b — footprints, table X positions, chair offsets, `Occupied` attributes, `EntranceMarker`, `Aisle1..3`, per-table `WalkPath/Node1..2`, `KitchenStations`, `SignMount`, `KioskMount`, open front, per-stage roof color + accent part. Set each model `PrimaryPart = Base`.
+3. **Commissioned art:** modeler replaces the graybox parts inside each stage model, keeping every named child at its specced local position and every marker part / attribute intact. The names in §4 are the contract.
+4. **`KitchenBuilder.luau`:** replace procedural resize with the §4 model-swap `SetStage` — clone from `ServerStorage.RestaurantStages`, `PivotTo(plot.BuildAnchor.CFrame)`, clear all `Occupied`, set `KitchenStage` attribute, handle every §5 edge case, clamp `stage` to `1..MaxLevel`.
+5. **`CustomerSystem.server.luau` / `PlotUtils.luau`:** update the `Stage1Building` → `Restaurant` name; add the §8 waypoint routing (entrance → aisle → table `WalkPath` → chair, reverse on exit); guard every customer coroutine step against a destroyed `Restaurant`/chair/model; `pcall` + free the seat on error.
+6. **Billboard:** per-building `BillboardGui` above the roof — owner name + "Stage N", large `AlwaysOnTop` text; empty-seat highlight so seat state reads without UI (§6).
+7. **QA:** stage-model checker (asserts §4 children exist per stage), upgrade-mid-service test, concurrent-customer load test at 6 plots × max seats.
+8. **Later:** active cooking (§7) and any related products stay server-authoritative for the multiplier and its duration.
