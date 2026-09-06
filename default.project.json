@@ -7,6 +7,12 @@
       "$path": "src/server"
     },
 
+    "ServerStorage": {
+      "RestaurantStages": {
+        "$path": "src/serverstorage/RestaurantStages"
+      }
+    },
+
     "ReplicatedStorage": {
       "Data": {
         "$path": "src/shared/Data"
