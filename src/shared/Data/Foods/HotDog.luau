@@ -1,44 +1,42 @@
 return {
-	Name = "Pizza",
-	Label = "Pizza",
+	Name = "HotDog",
+	Label = "Hot Dog",
 	Area = "New York",
-	Price = 50,
-	BaseRestaurantValue = 25,
-	BaseBites = 6,
-	-- Graybox shape the vendor spawns. Tilt lays the cylinder flat like a pie.
+	Price = 30,
+	BaseRestaurantValue = 15,
+	BaseBites = 4,
 	Model = {
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.6, 3, 3),
-		Tilt = CFrame.Angles(0, 0, math.rad(90)),
+		Shape = Enum.PartType.Block,
+		Size = Vector3.new(3.6, 1.2, 1.2),
 	},
 	Variants = {
 		Common = {
-			DisplayName = "Pizza",
+			DisplayName = "Hot Dog",
 			ValueMultiplier = 1,
-			Color = Color3.fromRGB(230, 200, 150),
+			Color = Color3.fromRGB(200, 120, 90),
 		},
 		Uncommon = {
-			DisplayName = "Extra Cheese Pizza",
+			DisplayName = "Sauerkraut Dog",
 			ValueMultiplier = 2,
 			Color = Color3.fromRGB(120, 220, 120),
 		},
 		Rare = {
-			DisplayName = "Pepperoni Deluxe Pizza",
+			DisplayName = "Chili Cheese Dog",
 			ValueMultiplier = 5,
 			Color = Color3.fromRGB(100, 150, 255),
 		},
 		Epic = {
-			DisplayName = "Truffle Pizza",
+			DisplayName = "Coney Island Foot-Long",
 			ValueMultiplier = 12,
 			Color = Color3.fromRGB(190, 100, 255),
 		},
 		Legendary = {
-			DisplayName = "Golden Pizza",
+			DisplayName = "Golden Frankfurter",
 			ValueMultiplier = 30,
 			Color = Color3.fromRGB(255, 200, 40),
 		},
 		Secret = {
-			DisplayName = "Galaxy Pizza",
+			DisplayName = "Galactic Glizzy",
 			ValueMultiplier = 100,
 			Color = Color3.fromRGB(160, 60, 255),
 		},
