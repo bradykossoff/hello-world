@@ -3,11 +3,12 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+
+local HudDock = require(script.Parent:WaitForChild("HudDock"))
+local Theme = HudDock.Theme
 
 local UpgradeCatalog = require(ReplicatedStorage.Data.UpgradeCatalog)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
-local OpenUpgradePanel = remotes:WaitForChild("OpenUpgradePanel")
 local PurchaseUpgrade = remotes:WaitForChild("PurchaseUpgrade")
 
 local plotsFolder = Workspace:WaitForChild("Plots")
@@ -41,79 +42,36 @@ local function findMyPlot()
 end
 
 ----------------------------------------------------------------
--- Panel UI
+-- Panel
 ----------------------------------------------------------------
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "UpgradeGui"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = false
-gui.Parent = playerGui
-
-local frame = Instance.new("Frame")
-frame.Name = "UpgradeFrame"
-frame.AnchorPoint = Vector2.new(0.5, 0.5)
-frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-frame.Size = UDim2.new(0, 480, 0, 460)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-frame.BorderSizePixel = 0
-frame.Visible = false
-frame.Parent = gui
-
-local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 14)
-frameCorner.Parent = frame
-
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 50)
-titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
-titleBar.BorderSizePixel = 0
-titleBar.Parent = frame
-
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 14)
-titleCorner.Parent = titleBar
-
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -50, 1, 0)
-titleLabel.Position = UDim2.new(0, 16, 0, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "UPGRADES"
-titleLabel.Font = Enum.Font.GothamBlack
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextScaled = true
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.Parent = titleBar
-
-local closeButton = Instance.new("TextButton")
-closeButton.AnchorPoint = Vector2.new(1, 0.5)
-closeButton.Position = UDim2.new(1, -10, 0.5, 0)
-closeButton.Size = UDim2.new(0, 32, 0, 32)
-closeButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
-closeButton.Text = "X"
-closeButton.Font = Enum.Font.GothamBold
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.TextScaled = true
-closeButton.Parent = titleBar
-
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 8)
-closeCorner.Parent = closeButton
+local panel = HudDock.makePanel("UPGRADES", UDim2.new(0, 480, 0, 470))
 
 local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Position = UDim2.new(0, 12, 0, 62)
-scrollFrame.Size = UDim2.new(1, -24, 1, -74)
+scrollFrame.Size = UDim2.new(1, 0, 1, 0)
 scrollFrame.BackgroundTransparency = 1
 scrollFrame.BorderSizePixel = 0
 scrollFrame.ScrollBarThickness = 6
+scrollFrame.ScrollBarImageColor3 = Theme.Wood
 scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-scrollFrame.Parent = frame
+scrollFrame.Parent = panel.body
 
 local listLayout = Instance.new("UIListLayout")
 listLayout.Padding = UDim.new(0, 8)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = scrollFrame
+
+local emptyLabel = Instance.new("TextLabel")
+emptyLabel.Size = UDim2.new(1, 0, 1, 0)
+emptyLabel.BackgroundTransparency = 1
+emptyLabel.Font = Theme.BodyBoldFont
+emptyLabel.TextSize = 16
+emptyLabel.TextWrapped = true
+emptyLabel.TextColor3 = Theme.InkBrown
+emptyLabel.Text = "Claim a restaurant plot first —\nthen come back to upgrade it!"
+emptyLabel.Visible = false
+emptyLabel.Parent = panel.body
 
 local rows = {}
 
@@ -130,7 +88,7 @@ local function buildRows()
 		row.Name = trackName
 		row.LayoutOrder = i
 		row.Size = UDim2.new(1, 0, 0, 78)
-		row.BackgroundColor3 = Color3.fromRGB(38, 38, 46)
+		row.BackgroundColor3 = Theme.ParchmentDim
 		row.BorderSizePixel = 0
 		row.Parent = scrollFrame
 
@@ -138,28 +96,34 @@ local function buildRows()
 		rowCorner.CornerRadius = UDim.new(0, 10)
 		rowCorner.Parent = row
 
+		local rowStroke = Instance.new("UIStroke")
+		rowStroke.Color = Theme.Wood
+		rowStroke.Thickness = 1.5
+		rowStroke.Transparency = 0.5
+		rowStroke.Parent = row
+
 		local nameLabel = Instance.new("TextLabel")
 		nameLabel.Name = "NameLabel"
-		nameLabel.Size = UDim2.new(1, -120, 0, 22)
-		nameLabel.Position = UDim2.new(0, 10, 0, 6)
+		nameLabel.Size = UDim2.new(1, -130, 0, 24)
+		nameLabel.Position = UDim2.new(0, 12, 0, 8)
 		nameLabel.BackgroundTransparency = 1
 		nameLabel.Text = track.DisplayName .. "  (Lv. ?)"
-		nameLabel.Font = Enum.Font.GothamBold
-		nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-		nameLabel.TextScaled = true
+		nameLabel.Font = Theme.TitleFont
+		nameLabel.TextSize = 18
+		nameLabel.TextColor3 = Theme.InkBrown
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 		nameLabel.Parent = row
 
 		local descLabel = Instance.new("TextLabel")
 		descLabel.Name = "DescLabel"
-		descLabel.Size = UDim2.new(1, -120, 0, 34)
-		descLabel.Position = UDim2.new(0, 10, 0, 28)
+		descLabel.Size = UDim2.new(1, -130, 0, 38)
+		descLabel.Position = UDim2.new(0, 12, 0, 32)
 		descLabel.BackgroundTransparency = 1
 		descLabel.Text = track.Description
-		descLabel.Font = Enum.Font.Gotham
-		descLabel.TextColor3 = Color3.fromRGB(190, 190, 195)
+		descLabel.Font = Theme.BodyFont
+		descLabel.TextSize = 13
+		descLabel.TextColor3 = Color3.fromRGB(96, 78, 54)
 		descLabel.TextWrapped = true
-		descLabel.TextScaled = true
 		descLabel.TextXAlignment = Enum.TextXAlignment.Left
 		descLabel.TextYAlignment = Enum.TextYAlignment.Top
 		descLabel.Parent = row
@@ -167,12 +131,12 @@ local function buildRows()
 		local buyButton = Instance.new("TextButton")
 		buyButton.Name = "BuyButton"
 		buyButton.AnchorPoint = Vector2.new(1, 0.5)
-		buyButton.Position = UDim2.new(1, -10, 0.5, 0)
-		buyButton.Size = UDim2.new(0, 100, 0, 44)
-		buyButton.BackgroundColor3 = Color3.fromRGB(60, 170, 90)
-		buyButton.Font = Enum.Font.GothamBlack
-		buyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-		buyButton.TextScaled = true
+		buyButton.Position = UDim2.new(1, -12, 0.5, 0)
+		buyButton.Size = UDim2.new(0, 104, 0, 46)
+		buyButton.BackgroundColor3 = Theme.Basil
+		buyButton.Font = Theme.TitleFont
+		buyButton.TextColor3 = Theme.TextLight
+		buyButton.TextSize = 18
 		buyButton.Text = "$?"
 		buyButton.Parent = row
 
@@ -190,6 +154,9 @@ end
 
 local function refreshRows()
 	local plot = findMyPlot()
+
+	emptyLabel.Visible = plot == nil
+	scrollFrame.Visible = plot ~= nil
 	if not plot then return end
 
 	for trackName, row in pairs(rows) do
@@ -207,11 +174,11 @@ local function refreshRows()
 
 		if cost then
 			row.buyButton.Text = "$" .. cost
-			row.buyButton.BackgroundColor3 = Color3.fromRGB(60, 170, 90)
+			row.buyButton.BackgroundColor3 = Theme.Basil
 			row.buyButton.Active = true
 		else
 			row.buyButton.Text = "MAX"
-			row.buyButton.BackgroundColor3 = Color3.fromRGB(90, 90, 100)
+			row.buyButton.BackgroundColor3 = Theme.Wood
 			row.buyButton.Active = false
 		end
 	end
@@ -235,20 +202,37 @@ local function bindToPlot(plot)
 	refreshRows()
 end
 
-local isOpen = false
+local dockEntry
 local function setOpen(open)
-	isOpen = open
-	frame.Visible = open
+	if open then
+		HudDock.closeOthers("upgrades")
+	end
+	panel:setOpen(open)
+	if dockEntry then
+		dockEntry.setActive(open)
+	end
 	if open then
 		bindToPlot(findMyPlot())
 		refreshRows()
 	end
 end
 
-OpenUpgradePanel.OnClientEvent:Connect(function()
-	setOpen(true)
-end)
+panel.onClose = function()
+	if dockEntry then
+		dockEntry.setActive(false)
+	end
+end
 
-closeButton.MouseButton1Click:Connect(function()
-	setOpen(false)
-end)
+dockEntry = HudDock.register({
+	id = "upgrades",
+	label = "UPGRADES",
+	icon = "⬆️",
+	order = 30,
+	accent = Theme.Butter,
+	onActivate = function()
+		setOpen(not panel:isOpen())
+	end,
+	close = function()
+		setOpen(false)
+	end,
+})

@@ -6,6 +6,8 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+local HudDock = require(script.Parent:WaitForChild("HudDock"))
+
 local UpgradeCatalog = require(ReplicatedStorage.Data.UpgradeCatalog)
 local Foods = ReplicatedStorage.Data.Foods
 
@@ -74,24 +76,8 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "MenuBookGui"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = false
+gui.DisplayOrder = 9
 gui.Parent = playerGui
-
-local menuButton = Instance.new("TextButton")
-menuButton.Name = "MenuButton"
-menuButton.AnchorPoint = Vector2.new(1, 0)
-menuButton.Position = UDim2.new(1, -268, 0, 90)
-menuButton.Size = UDim2.new(0, 110, 0, 50)
-menuButton.BackgroundColor3 = Color3.fromRGB(190, 140, 60)
-menuButton.BorderSizePixel = 0
-menuButton.Font = Enum.Font.GothamBold
-menuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-menuButton.TextScaled = true
-menuButton.Text = "MENU"
-menuButton.Parent = gui
-
-local menuButtonCorner = Instance.new("UICorner")
-menuButtonCorner.CornerRadius = UDim.new(0, 10)
-menuButtonCorner.Parent = menuButton
 
 local book = Instance.new("Frame")
 book.Name = "Book"
@@ -309,9 +295,16 @@ local function bindToPlot(plot)
 	refresh()
 end
 
+local dockEntry
 local isOpen = false
 local function setOpen(open)
 	isOpen = open
+	if open then
+		HudDock.closeOthers("menu")
+	end
+	if dockEntry then
+		dockEntry.setActive(open)
+	end
 	if open then
 		book.Visible = true
 		book.Size = UDim2.new(0, 0, 0, 0)
@@ -328,6 +321,16 @@ closeButton.MouseButton1Click:Connect(function()
 	setOpen(false)
 end)
 
-menuButton.MouseButton1Click:Connect(function()
-	setOpen(not isOpen)
-end)
+dockEntry = HudDock.register({
+	id = "menu",
+	label = "MENU",
+	icon = "🍽️",
+	order = 10,
+	accent = HudDock.Theme.Butter,
+	onActivate = function()
+		setOpen(not isOpen)
+	end,
+	close = function()
+		setOpen(false)
+	end,
+})

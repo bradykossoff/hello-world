@@ -23,7 +23,6 @@
         "Notify": { "$className": "RemoteEvent" },
         "CustomerPaid": { "$className": "RemoteEvent" },
         "TeleportToPlaza": { "$className": "RemoteEvent" },
-        "OpenUpgradePanel": { "$className": "RemoteEvent" },
         "PurchaseUpgrade": { "$className": "RemoteEvent" },
         "AddFoodToMenu": { "$className": "RemoteEvent" },
         "RemoveMenuItem": { "$className": "RemoteEvent" }

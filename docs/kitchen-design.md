@@ -375,3 +375,7 @@ Steps 1, 2, 4, 5 are done — all in code, no Studio modeler:
   billboard + empty-seat highlight — the old `plot.SignPost.Nameplate` still
   works), step 7 (QA), step 8 (active cooking). Stages 4–5 / prestige remain
   reserved in `UpgradeCatalog` (still `MaxLevel = 3`).
+- **`plot.UpgradeKiosk` is gone.** Upgrades are bought from the on-screen HUD
+  dock (`src/client/HudDock` + `UpgradeUI`), not a physical kiosk.
+  `scripts/remove-upgrade-kiosks.luau` strips the kiosk models from the .rbxl;
+  `SetStage` never referenced the kiosk, so §4's "must not touch" note is moot.
