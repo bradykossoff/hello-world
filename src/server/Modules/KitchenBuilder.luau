@@ -73,6 +73,11 @@ function KitchenBuilder.SetStage(plot, stage)
 	local tableCount = UpgradeCatalog.KitchenStage.TableCounts[stage]
 	if not tableCount then return end
 
+	-- Nothing to do if the building is already at this stage (e.g. a Stage 1
+	-- player joining a fresh Stage 1 plot). Avoids destroying and respawning
+	-- every table on each join.
+	if plot:GetAttribute("KitchenStage") == stage then return end
+
 	local kitchen = building:FindFirstChild("Kitchen")
 	local counter = building:FindFirstChild("Counter")
 	local roof = building:FindFirstChild("Roof")

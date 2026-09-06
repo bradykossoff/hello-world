@@ -137,12 +137,38 @@ local function savePlayerData(userId, data)
 	if not restaurantStore then
 		return
 	end
-	local success, err = pcall(function()
-		restaurantStore:SetAsync(tostring(userId), data)
-	end)
-	if not success then
-		warn("Failed to save restaurant data for", userId, err)
+	for attempt = 1, 3 do
+		local success, err = pcall(function()
+			restaurantStore:SetAsync(tostring(userId), data)
+		end)
+		if success then
+			return
+		end
+		warn(string.format("Save attempt %d failed for %s: %s", attempt, tostring(userId), tostring(err)))
+		if attempt < 3 then
+			task.wait(2 ^ attempt)
+		end
 	end
+end
+
+-- Snapshots everything persisted for a player (money, upgrade levels, menu)
+-- without touching the plot - used by both autosave and plot release.
+local function collectPlayerData(player)
+	local plot = PlotUtils.getPlotForPlayer(plotsFolder, player)
+
+	local data = { Money = Economy.Get(player) }
+	if plot then
+		for trackName in pairs(Upgrades.AttributeNames) do
+			data[trackName] = Upgrades.GetLevel(plot, trackName)
+		end
+		data.Menu = serializeMenu(plot)
+	else
+		for trackName, level in pairs(defaultUpgradeData()) do
+			data[trackName] = level
+		end
+		data.Menu = {}
+	end
+	return data
 end
 
 local function hookCharacterSpawn(player, plot)
@@ -209,23 +235,9 @@ end
 local function releasePlot(player)
 	unhookCharacterSpawn(player)
 
+	savePlayerData(player.UserId, collectPlayerData(player))
+
 	local plot = PlotUtils.getPlotForPlayer(plotsFolder, player)
-
-	local data = { Money = Economy.Get(player) }
-	if plot then
-		for trackName in pairs(Upgrades.AttributeNames) do
-			data[trackName] = Upgrades.GetLevel(plot, trackName)
-		end
-		data.Menu = serializeMenu(plot)
-	else
-		local defaults = defaultUpgradeData()
-		for trackName, level in pairs(defaults) do
-			data[trackName] = level
-		end
-		data.Menu = {}
-	end
-	savePlayerData(player.UserId, data)
-
 	if plot then
 		plot:SetAttribute("OwnerUserId", 0)
 		plot:SetAttribute("OwnerName", "")
@@ -250,8 +262,34 @@ end
 Players.PlayerAdded:Connect(assignPlot)
 Players.PlayerRemoving:Connect(releasePlot)
 
+-- Periodic autosave so a server crash costs at most one interval of progress
+-- rather than the whole session.
+local AUTOSAVE_INTERVAL = 120
+
+task.spawn(function()
+	while true do
+		task.wait(AUTOSAVE_INTERVAL)
+		for _, player in ipairs(Players:GetPlayers()) do
+			task.spawn(savePlayerData, player.UserId, collectPlayerData(player))
+		end
+	end
+end)
+
 game:BindToClose(function()
-	for _, player in ipairs(Players:GetPlayers()) do
-		releasePlot(player)
+	local players = Players:GetPlayers()
+	local pending = #players
+	if pending == 0 then
+		return
+	end
+
+	for _, player in ipairs(players) do
+		task.spawn(function()
+			releasePlot(player)
+			pending -= 1
+		end)
+	end
+
+	while pending > 0 do
+		task.wait()
 	end
 end)

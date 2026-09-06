@@ -8,6 +8,7 @@ local Economy = require(ServerScriptService.Modules.Economy)
 local Shop = require(ServerScriptService.Modules.Shop)
 local Upgrades = require(ServerScriptService.Modules.Upgrades)
 local Notify = ReplicatedStorage.Remotes:WaitForChild("Notify")
+local CustomerPaid = ReplicatedStorage.Remotes:WaitForChild("CustomerPaid")
 
 local plotsFolder = Workspace:WaitForChild("Plots")
 local customersFolder = Workspace:WaitForChild("Customers")
@@ -51,12 +52,20 @@ local function createCustomerModel()
 	head.Name = "Head"
 	head.Shape = Enum.PartType.Ball
 	head.Size = Vector3.new(1.3, 1.3, 1.3)
-	head.Anchored = true
+	head.Anchored = false
+	head.Massless = true
 	head.CanCollide = false
 	head.Color = Color3.fromRGB(255, 213, 170)
 	head.Material = Enum.Material.SmoothPlastic
 	head.CFrame = torso.CFrame * CFrame.new(0, 1.9, 0)
 	head.Parent = model
+
+	-- Head rides the anchored torso by weld, so a single CFrame tween on the
+	-- torso moves the whole customer.
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = torso
+	weld.Part1 = head
+	weld.Parent = torso
 
 	model.PrimaryPart = torso
 	return model
@@ -92,45 +101,14 @@ local function getRandomMenuItem(plot)
 	return items[math.random(1, #items)]
 end
 
-local function walkModel(model, fromCFrame, toCFrame, duration)
-	local steps = math.max(10, math.floor(duration * 20))
-	for i = 1, steps do
-		local alpha = i / steps
-		model:PivotTo(fromCFrame:Lerp(toCFrame, alpha))
-		task.wait(duration / steps)
-	end
-end
+local WALK_TWEEN = TweenInfo.new(WALK_DURATION, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 
-local function showFloatingText(position, text, color)
-	local part = Instance.new("Part")
-	part.Size = Vector3.new(0.1, 0.1, 0.1)
-	part.Transparency = 1
-	part.CanCollide = false
-	part.Anchored = true
-	part.CFrame = CFrame.new(position)
-	part.Parent = Workspace
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.new(0, 100, 0, 40)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = part
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = text
-	label.TextColor3 = color
-	label.TextStrokeTransparency = 0
-	label.Font = Enum.Font.GothamBold
-	label.TextScaled = true
-	label.Parent = billboard
-
-	TweenService:Create(billboard, TweenInfo.new(1.5), { StudsOffset = Vector3.new(0, 3, 0) }):Play()
-	TweenService:Create(label, TweenInfo.new(1.5), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-
-	task.delay(1.6, function()
-		part:Destroy()
-	end)
+-- One engine-interpolated tween on the anchored torso per leg of the trip,
+-- instead of ~60 replicated PivotTo steps.
+local function walkTo(customer, toCFrame)
+	local tween = TweenService:Create(customer.PrimaryPart, WALK_TWEEN, { CFrame = toCFrame })
+	tween:Play()
+	return tween
 end
 
 local function getEatTime(plot)
@@ -166,7 +144,7 @@ local function runCustomerVisit(plot, tbl, chair, order, ownerUserId)
 	customer.Parent = customersFolder
 	customer:PivotTo(spawnCFrame)
 
-	walkModel(customer, spawnCFrame, seatCFrame, WALK_DURATION)
+	walkTo(customer, seatCFrame).Completed:Wait()
 
 	task.wait(getEatTime(plot))
 
@@ -179,11 +157,10 @@ local function runCustomerVisit(plot, tbl, chair, order, ownerUserId)
 	if player then
 		Economy.Add(player, value)
 		Notify:FireClient(player, "A customer bought " .. displayName .. " for $" .. tostring(value) .. "!", Color3.fromRGB(140, 230, 140))
+		CustomerPaid:FireClient(player, chair.Position + Vector3.new(0, 4, 0), value)
 	end
 
-	showFloatingText(chair.Position + Vector3.new(0, 4, 0), "+$" .. tostring(value), Color3.fromRGB(140, 230, 140))
-
-	walkModel(customer, seatCFrame, spawnCFrame, WALK_DURATION)
+	walkTo(customer, spawnCFrame).Completed:Wait()
 	customer:Destroy()
 
 	chair:SetAttribute("Occupied", false)

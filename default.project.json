@@ -15,6 +15,7 @@
         "$className": "Folder",
         "RevealFood": { "$className": "RemoteEvent" },
         "Notify": { "$className": "RemoteEvent" },
+        "CustomerPaid": { "$className": "RemoteEvent" },
         "TeleportToPlaza": { "$className": "RemoteEvent" },
         "OpenUpgradePanel": { "$className": "RemoteEvent" },
         "PurchaseUpgrade": { "$className": "RemoteEvent" },
