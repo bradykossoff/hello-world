@@ -38,6 +38,20 @@ local STARTING_MONEY = 250
 -- they lose their plot (leaving, or later: switching plots).
 local spawnConnections = {}
 
+-- What loadPlayerData returned for a player this session, keyed by UserId.
+-- "loading" while GetAsync is still in flight, then the data table. Absent or
+-- "loading" means we don't yet know the player's real progression, so saving
+-- would overwrite their DataStore with defaults - skip it.
+local sessionData = {}
+
+-- Per-player SetAsync lock so a leave save, an autosave, and BindToClose can't
+-- race each other writing the same key.
+local saveInFlight = {}
+
+-- Set once PlayerRemoving has run the final save for a player, so BindToClose
+-- doesn't redo it.
+local finalSaved = {}
+
 local function defaultUpgradeData()
 	local data = {}
 	for trackName, defaultLevel in pairs(Upgrades.DefaultLevels) do
@@ -134,39 +148,55 @@ local function loadPlayerData(userId)
 end
 
 local function savePlayerData(userId, data)
-	if not restaurantStore then
+	if not restaurantStore or data == nil then
 		return
 	end
+	-- Wait out any save already running for this player, then claim the lock.
+	while saveInFlight[userId] do
+		task.wait()
+	end
+	saveInFlight[userId] = true
+
 	for attempt = 1, 3 do
 		local success, err = pcall(function()
 			restaurantStore:SetAsync(tostring(userId), data)
 		end)
 		if success then
-			return
+			break
 		end
 		warn(string.format("Save attempt %d failed for %s: %s", attempt, tostring(userId), tostring(err)))
 		if attempt < 3 then
 			task.wait(2 ^ attempt)
 		end
 	end
+
+	saveInFlight[userId] = nil
 end
 
 -- Snapshots everything persisted for a player (money, upgrade levels, menu)
--- without touching the plot - used by both autosave and plot release.
+-- without touching the plot - used by both autosave and plot release. Returns
+-- nil when this player's data hasn't finished loading (fast join then leave),
+-- because saving now would write defaults over their real DataStore.
 local function collectPlayerData(player)
-	local plot = PlotUtils.getPlotForPlayer(plotsFolder, player)
+	local saved = sessionData[player.UserId]
+	if type(saved) ~= "table" then
+		return nil
+	end
 
 	local data = { Money = Economy.Get(player) }
+	local plot = PlotUtils.getPlotForPlayer(plotsFolder, player)
 	if plot then
 		for trackName in pairs(Upgrades.AttributeNames) do
 			data[trackName] = Upgrades.GetLevel(plot, trackName)
 		end
 		data.Menu = serializeMenu(plot)
 	else
-		for trackName, level in pairs(defaultUpgradeData()) do
-			data[trackName] = level
+		-- No plot right now (server was full on join, say) - persist their
+		-- money but keep the upgrade levels and menu we loaded intact.
+		for trackName in pairs(Upgrades.AttributeNames) do
+			data[trackName] = saved[trackName] or Upgrades.DefaultLevels[trackName]
 		end
-		data.Menu = {}
+		data.Menu = saved.Menu or {}
 	end
 	return data
 end
@@ -201,7 +231,10 @@ local function unhookCharacterSpawn(player)
 end
 
 local function assignPlot(player)
+	finalSaved[player.UserId] = nil
+	sessionData[player.UserId] = "loading"
 	local data = loadPlayerData(player.UserId)
+	sessionData[player.UserId] = data
 	Economy.Set(player, data.Money)
 
 	local plot = PlotUtils.getFreePlot(plotsFolder)
@@ -235,7 +268,12 @@ end
 local function releasePlot(player)
 	unhookCharacterSpawn(player)
 
-	savePlayerData(player.UserId, collectPlayerData(player))
+	local data = collectPlayerData(player)
+	if data then
+		savePlayerData(player.UserId, data)
+	end
+	finalSaved[player.UserId] = true
+	sessionData[player.UserId] = nil
 
 	local plot = PlotUtils.getPlotForPlayer(plotsFolder, player)
 	if plot then
@@ -279,23 +317,29 @@ task.spawn(function()
 	while true do
 		task.wait(AUTOSAVE_INTERVAL)
 		for _, player in ipairs(Players:GetPlayers()) do
-			task.spawn(savePlayerData, player.UserId, collectPlayerData(player))
+			local data = collectPlayerData(player)
+			if data then
+				task.spawn(savePlayerData, player.UserId, data)
+			end
 		end
 	end
 end)
 
 game:BindToClose(function()
-	local players = Players:GetPlayers()
-	local pending = #players
-	if pending == 0 then
-		return
-	end
+	local pending = 0
 
-	for _, player in ipairs(players) do
-		task.spawn(function()
-			releasePlot(player)
-			pending -= 1
-		end)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if not finalSaved[player.UserId] then
+			pending += 1
+			task.spawn(function()
+				local data = collectPlayerData(player)
+				if data then
+					savePlayerData(player.UserId, data)
+				end
+				finalSaved[player.UserId] = true
+				pending -= 1
+			end)
+		end
 	end
 
 	while pending > 0 do
