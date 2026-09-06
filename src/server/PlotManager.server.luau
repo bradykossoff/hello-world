@@ -257,6 +257,12 @@ for _, plot in ipairs(plotsFolder:GetChildren()) do
 	plot:GetAttributeChangedSignal("KitchenStage"):Connect(function() updateBillboard(plot) end)
 	plot:GetAttributeChangedSignal("MenuCount"):Connect(function() updateBillboard(plot) end)
 	updateBillboard(plot)
+
+	-- Give every unclaimed plot a Stage 1 building at boot so the hub isn't
+	-- full of empty lots (assignPlot / releasePlot rebuild it from there).
+	if (plot:GetAttribute("OwnerUserId") or 0) == 0 then
+		KitchenBuilder.SetStage(plot, 1)
+	end
 end
 
 Players.PlayerAdded:Connect(assignPlot)
