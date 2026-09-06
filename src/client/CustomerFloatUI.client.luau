@@ -21,6 +21,7 @@ CustomerPaid.OnClientEvent:Connect(function(position, value)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Size = UDim2.new(0, 100, 0, 40)
 	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 90
 	billboard.Parent = anchor
 
 	local label = Instance.new("TextLabel")

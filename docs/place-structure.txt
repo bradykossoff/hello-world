@@ -38,7 +38,8 @@ Plots (Folder)
     BoundaryPost4 (Part)
     Stage1Building (Model)
     SignPost (Part)
-    Menu (Folder)  Plot5 (Model)
+    Menu (Folder)
+  Plot5 (Model)
     PlotFloor (Part)
     BoundaryPost1 (Part)
     BoundaryPost2 (Part)
@@ -46,7 +47,8 @@ Plots (Folder)
     BoundaryPost4 (Part)
     Stage1Building (Model)
     SignPost (Part)
-    Menu (Folder)  Plot6 (Model)
+    Menu (Folder)
+  Plot6 (Model)
     PlotFloor (Part)
     BoundaryPost1 (Part)
     BoundaryPost2 (Part)
@@ -54,8 +56,11 @@ Plots (Folder)
     BoundaryPost4 (Part)
     Stage1Building (Model)
     SignPost (Part)
-    Menu (Folder)Hub (Folder)
+    Menu (Folder)
+Hub (Folder)
   PlazaFloor (Part)
+  CityDressing (Model)  -- runtime-built by WorldDress.server (lampposts, planters,
+                        --   benches, string lights, edge storefronts, soft skyline)
   PlazaSign (Part)
     Sign (BillboardGui)
   MainRoad (Part)
@@ -66,7 +71,8 @@ Plots (Folder)
   PlanePlaceholder_Wings (Part)
   AirportSign (Part)
     Sign (BillboardGui)
-  Kiosks (Folder)    PassportKiosk (Model)
+  Kiosks (Folder)
+    PassportKiosk (Model)
   PlayerSpawnPads (Folder)
     SpawnPad_Plot1 (Part)
     SpawnPad_Plot2 (Part)
@@ -89,6 +95,11 @@ Destinations (Folder)
     -- Grayboxed at runtime by FoodStandBuilder (one per non-"Existing" FoodStands entry):
     --   BodegaBagelCart_Stand, HotDogCart_Stand, StreetPretzelCart_Stand
     --   each: Body/Trim/Wheel/Pole/Umbrella + OrderPoint/OrderPrompt + FoodSpawnPoint + StandSign
+    City (Model)  -- runtime-built by WorldDress.server via CityKit: CityBase, Road,
+                  --   Sidewalk/Curb, north+south Building rows, Alley, 4 Skyline clusters,
+                  --   Props (lampposts, hydrants, taxis, traffic lights, subway entrance,
+                  --   bus shelter, scaffold, blade signs, steam vents). Cleared + rebuilt
+                  --   every server start; the hand-built anchors above are left alone.
 SpawnedFood (Folder)
 Customers (Folder)
 
@@ -101,6 +112,7 @@ Modules (Folder)
   Shop (ModuleScript)
   KitchenBuilder (ModuleScript)
   FoodStandBuilder (ModuleScript)
+  CityKit (ModuleScript)         -- graybox construction kit for the dusk-city look
   Upgrades (ModuleScript)
 FoodVendorSystem (Script)
 TravelSystem (Script)
@@ -109,6 +121,8 @@ MenuEditorSystem (Script)
 CustomerSystem (Script)
 PlazaTeleportSystem (Script)
 UpgradeSystem (Script)
+WorldDress (Script)              -- dusk Lighting + builds NewYork.City + Hub.CityDressing
+                                --   + game-wide BillboardGui cleanup, on server start
 Server (Script)
 
 == ReplicatedStorage ==
@@ -144,8 +158,13 @@ StarterPlayerScripts (StarterPlayerScripts)
 StarterCharacterScripts (StarterCharacterScripts)
 
 == Lighting ==
-Sky (Sky)
+-- WorldDress.server overrides this at runtime for a shared dusk look: ClockTime
+-- ~18.4, warm ambient, tuned Atmosphere/Bloom, adds a CityGrade ColorCorrection,
+-- and DESTROYS the baked Sky so the procedural dusk sky shows. Edit the .rbxl
+-- children below only if you also change applyDuskLighting().
+Sky (Sky)                 -- removed at runtime by WorldDress
 SunRays (SunRaysEffect)
 Atmosphere (Atmosphere)
 Bloom (BloomEffect)
 DepthOfField (DepthOfFieldEffect)
+CityGrade (ColorCorrectionEffect)  -- added at runtime

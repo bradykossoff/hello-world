@@ -4,6 +4,9 @@
 --   <Cart>/OrderPoint/OrderPrompt   -- ProximityPrompt the player triggers
 --   <Cart>/FoodSpawnPoint           -- where the rolled food part appears
 
+local ServerScriptService = game:GetService("ServerScriptService")
+local CityKit = require(ServerScriptService.Modules.CityKit)
+
 local FoodStandBuilder = {}
 
 local function makePart(name, parent, props)
@@ -66,6 +69,15 @@ function FoodStandBuilder.Build(parent, standName, tint, baseCFrame)
 		CFrame = baseCFrame * CFrame.new(0, 7, 0),
 	})
 
+	-- warm glow so the cart reads at dusk
+	local lantern = makePart("Lantern", cart, {
+		Size = Vector3.new(0.6, 0.6, 0.6),
+		Color = Color3.fromRGB(255, 200, 140),
+		Material = Enum.Material.Neon,
+		CFrame = baseCFrame * CFrame.new(0, 6.4, -1.6),
+	})
+	CityKit.light(lantern, { Range = 14, Brightness = 1.4 })
+
 	local orderPoint = makePart("OrderPoint", cart, {
 		Size = Vector3.new(1, 1, 1),
 		Transparency = 1,
@@ -99,18 +111,19 @@ function FoodStandBuilder.Build(parent, standName, tint, baseCFrame)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "Sign"
 	billboard.Size = UDim2.new(0, 220, 0, 50)
-	billboard.AlwaysOnTop = true
 	billboard.Parent = signPart
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, 0, 1, 0)
 	label.BackgroundTransparency = 1
 	label.Font = Enum.Font.GothamBold
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextColor3 = Color3.fromRGB(255, 236, 200)
 	label.TextStrokeTransparency = 0
 	label.TextScaled = true
 	label.Text = standName
 	label.Parent = billboard
+
+	CityKit.polishBillboard(billboard, 75)
 
 	cart.Parent = parent
 	return cart
