@@ -1,11 +1,21 @@
--- Graybox construction kit for the dusk-city look (New York + the hub dressing
--- pass). Everything here is anchored, deterministic, and grouped under a Model
--- the caller owns, so a scene can be cleared and rebuilt on every server start.
+-- Graybox construction kit for the golden-hour New York look. Everything here is
+-- anchored, deterministic, and grouped under a Model the caller owns, so a scene
+-- can be cleared and rebuilt on every server start.
 --
 -- Conventions: a "front" CFrame's -Z faces the street / the viewer. Ground walk
 -- surface is Y = 0 unless the caller passes a different base.
+--
+-- Low-level part/light/sign helpers live in BuildKit and are re-exported here so
+-- existing callers keep working; the hub garden uses ParkKit for its own props.
+
+local BuildKit = require(script.Parent.BuildKit)
 
 local CityKit = {}
+
+CityKit.part = BuildKit.part
+CityKit.light = BuildKit.light
+CityKit.polishBillboard = BuildKit.polishBillboard
+CityKit.surfaceSign = BuildKit.surfaceSign
 
 local Palette = {
 	Asphalt = Color3.fromRGB(58, 58, 66),
@@ -47,108 +57,6 @@ local NEONS = { Palette.NeonPink, Palette.NeonCyan, Palette.NeonAmber, Palette.N
 
 local function rand(rng, a, b)
 	return a + (b - a) * rng:NextNumber()
-end
-
-----------------------------------------------------------------
--- Primitives
-----------------------------------------------------------------
-
-function CityKit.part(parent, props)
-	local p = Instance.new("Part")
-	p.Anchored = true
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.Material = Enum.Material.SmoothPlastic
-	for k, v in pairs(props) do
-		p[k] = v
-	end
-	p.Parent = parent
-	return p
-end
-
-function CityKit.light(parentPart, props)
-	local l = Instance.new("PointLight")
-	l.Brightness = 1.4
-	l.Range = 16
-	l.Color = Palette.LampWarm
-	l.Shadows = false
-	for k, v in pairs(props or {}) do
-		l[k] = v
-	end
-	l.Parent = parentPart
-	return l
-end
-
--- Fix a floating-text BillboardGui: stop it punching through the world, fade it
--- with distance, and give it a readable backing panel so it reads as signage.
-function CityKit.polishBillboard(bb, maxDistance)
-	if not bb:IsA("BillboardGui") then
-		return
-	end
-	bb.AlwaysOnTop = false
-	bb.LightInfluence = 0
-	bb.MaxDistance = maxDistance or bb:GetAttribute("SignMaxDistance") or 110
-	bb.ClipsDescendants = true
-
-	if bb:FindFirstChild("SignBacking") then
-		return
-	end
-	local back = Instance.new("Frame")
-	back.Name = "SignBacking"
-	back.Size = UDim2.fromScale(1, 1)
-	back.BackgroundColor3 = Color3.fromRGB(18, 16, 24)
-	back.BackgroundTransparency = 0.12
-	back.BorderSizePixel = 0
-	back.ZIndex = 0
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = back
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Palette.NeonAmber
-	stroke.Thickness = 2
-	stroke.Transparency = 0.15
-	stroke.Parent = back
-
-	for _, child in ipairs(bb:GetChildren()) do
-		if child:IsA("GuiObject") then
-			child.ZIndex = math.max(child.ZIndex, 2)
-		end
-	end
-	back.Parent = bb
-end
-
--- A one-sided sign painted on a face of `host` (a Part). Good for storefront
--- and subway signage - unlike a BillboardGui it only shows from one direction.
-function CityKit.surfaceSign(host, face, text, textColor, bgColor)
-	local sg = Instance.new("SurfaceGui")
-	sg.Name = "SignFace"
-	sg.Face = face
-	sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	sg.PixelsPerStud = 48
-	sg.LightInfluence = 0
-	sg.MaxDistance = 140
-
-	local bg = Instance.new("Frame")
-	bg.Size = UDim2.fromScale(1, 1)
-	bg.BackgroundColor3 = bgColor or Color3.fromRGB(12, 10, 16)
-	bg.BackgroundTransparency = bgColor and 0 or 1
-	bg.BorderSizePixel = 0
-	bg.Parent = sg
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(0.92, 0.82)
-	label.Position = UDim2.fromScale(0.04, 0.09)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.Bangers
-	label.Text = text
-	label.TextColor3 = textColor or Palette.NeonAmber
-	label.TextScaled = true
-	label.Parent = bg
-
-	sg.Parent = host
-	return sg
 end
 
 ----------------------------------------------------------------

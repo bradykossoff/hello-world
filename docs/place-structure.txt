@@ -62,8 +62,12 @@ Plots (Folder)
     Menu (Folder)
 Hub (Folder)
   PlazaFloor (Part)
-  CityDressing (Model)  -- runtime-built by WorldDress (lampposts, planters,
-                        --   benches, string lights, edge storefronts, soft skyline)
+  HubGarden (Model)     -- runtime-built by WorldDress via ParkKit: lawn, garden
+                        --   avenue, plaza fountain, per-plot entry arch + hedge
+                        --   border, pond+bridge, vine pergola, gazebo, south
+                        --   sitting garden, treeline + rolling hills. Cleared +
+                        --   rebuilt every server start; the plot pads / spawn
+                        --   pads / MainRoad are left exactly where they are.
   PlazaSign (Part)
     Sign (BillboardGui)
   MainRoad (Part)
@@ -115,7 +119,9 @@ Modules (Folder)
   Shop (ModuleScript)
   KitchenBuilder (ModuleScript)
   FoodStandBuilder (ModuleScript)
-  CityKit (ModuleScript)         -- graybox construction kit for the golden-hour city look
+  BuildKit (ModuleScript)        -- low-level part/light/sign helpers (shared)
+  CityKit (ModuleScript)         -- New York graybox kit (buildings, skyline, city props)
+  ParkKit (ModuleScript)         -- hub garden kit (trees, hedges, water, arbors, ...)
   WorldDress (ModuleScript)      -- golden-hour Lighting + builds NewYork.City +
                                 --   Hub.CityDressing + game-wide BillboardGui cleanup.
                                 --   Preview in Edit mode via the command bar:

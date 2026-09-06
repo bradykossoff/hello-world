@@ -21,7 +21,9 @@ local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local CityKit = require(ServerScriptService.Modules.CityKit)
+local ParkKit = require(ServerScriptService.Modules.ParkKit)
 local P = CityKit.Palette
+local G = ParkKit.Palette
 
 local WorldDress = {}
 
@@ -336,14 +338,22 @@ local function buildNewYork()
 end
 
 ----------------------------------------------------------------
--- Hub / plaza cleanup pass (lighter)
+-- Hub: a calm garden park around the six plots
 ----------------------------------------------------------------
+-- Hub geometry (walk surfaces top out at Y = 1):
+--   MainRoad  X[-8,8] Z[-146,70]   PlazaFloor X[-35,35] Z[70,140]
+--   Plots     floors 50x50 at (+-40, , {40, -40, -120}); road-side edge X -+15
+--   SpawnPads (+-13, , {40, -40, -120})   PlazaTeleportPoint (0,3,85)
 
 local function dressHub()
 	local hub = Workspace:WaitForChild("Hub")
-	local dressing = freshFolder(hub, "CityDressing")
+	local plots = Workspace:WaitForChild("Plots")
+	local legacy = hub:FindFirstChild("CityDressing")
+	if legacy then
+		legacy:Destroy()
+	end
+	local garden = freshFolder(hub, "HubGarden")
 
-	-- warm up the existing surfaces
 	local function recolor(name, color, material)
 		local part = hub:FindFirstChild(name)
 		if part then
@@ -353,65 +363,160 @@ local function dressHub()
 			end
 		end
 	end
-	recolor("PlazaFloor", Color3.fromRGB(120, 110, 120), Enum.Material.Cobblestone)
-	recolor("MainRoad", P.Asphalt, Enum.Material.Asphalt)
-	recolor("PlazaAirportPath", Color3.fromRGB(120, 110, 120), Enum.Material.Cobblestone)
-	recolor("AirportFloor", Color3.fromRGB(70, 72, 80), Enum.Material.Concrete)
-
-	-- lampposts down MainRoad (runs Z -145 .. 70, X ~ +-8)
-	local hz = 0
-	for z = -140, 160, 30 do
-		hz += 1
-		CityKit.lamppost(dressing, CFrame.new(-10, 1, z), hz % 2 == 1)
-		CityKit.lamppost(dressing, CFrame.new(10, 1, z) * CFrame.Angles(0, math.pi, 0), hz % 2 == 0)
+	recolor("PlazaFloor", G.PathStone, Enum.Material.Cobblestone)
+	recolor("MainRoad", G.PathStone, Enum.Material.Cobblestone)
+	recolor("PlazaAirportPath", G.PathStone, Enum.Material.Cobblestone)
+	recolor("AirportFloor", Color3.fromRGB(150, 150, 156), Enum.Material.Concrete)
+	local passport = hub:FindFirstChild("Kiosks") and hub.Kiosks:FindFirstChild("PassportKiosk")
+	local pedestal = passport and passport:FindFirstChild("PassportKiosk_Pedestal")
+	if pedestal then
+		pedestal.Color = G.Wood
+		pedestal.Material = Enum.Material.WoodPlanks
 	end
 
-	-- plaza perimeter greenery + seating (plaza is 70x70 at (0,0.5,105))
-	for _, x in ipairs({ -33, 33 }) do
-		for z = 76, 134, 14 do
-			CityKit.planter(dressing, CFrame.new(x, 1, z))
+	-- big lawn under everything (0.1 below the paved surfaces so they read raised)
+	ParkKit.ground(garden, CFrame.new(0, 0.9, 25), 340, 460, G.LawnLight)
+
+	----------------------------------------------------------------
+	-- garden avenue down the MainRoad line
+	----------------------------------------------------------------
+	local av = 0
+	for z = -150, 56, 18 do
+		av += 1
+		for _, sx in ipairs({ -1, 1 }) do
+			ParkKit.tree(garden, CFrame.new(sx * 12, 1, z), { seed = 10 + av * 2 + (sx + 1), height = 11 + (av % 3) })
+		end
+		if av % 2 == 0 then
+			ParkKit.lamp(garden, CFrame.new(-10, 1, z))
+			ParkKit.lamp(garden, CFrame.new(10, 1, z))
+		else
+			ParkKit.flowerBed(garden, CFrame.new(-9.5, 1, z), 2.4, 12, 40 + av)
+			ParkKit.flowerBed(garden, CFrame.new(9.5, 1, z), 2.4, 12, 60 + av)
 		end
 	end
-	for _, z in ipairs({ 74, 136 }) do
-		CityKit.bench(dressing, CFrame.new(-14, 1, z))
-		CityKit.bench(dressing, CFrame.new(14, 1, z))
+
+	----------------------------------------------------------------
+	-- plaza: fountain square
+	----------------------------------------------------------------
+	ParkKit.fountain(garden, CFrame.new(0, 1, 112))
+	for i = 0, 3 do
+		local a = math.rad(i * 90 + 45)
+		ParkKit.bench(garden, CFrame.new(math.cos(a) * 14, 1, 112 + math.sin(a) * 14) * CFrame.Angles(0, -a + math.pi / 2, 0))
+		ParkKit.planter(garden, CFrame.new(math.cos(a) * 20, 1, 112 + math.sin(a) * 20), 700 + i)
+	end
+	for _, c in ipairs({ { -28, 80 }, { 28, 80 }, { -28, 134 }, { 28, 134 } }) do
+		ParkKit.tree(garden, CFrame.new(c[1], 1, c[2]), { seed = 800 + c[1] + c[2], height = 13, blossom = true })
+		ParkKit.lamp(garden, CFrame.new(c[1] * 1.05, 1, c[2]))
+	end
+	ParkKit.stringLights(garden, Vector3.new(-24, 9, 96), Vector3.new(24, 9, 96), 3)
+	ParkKit.stringLights(garden, Vector3.new(-24, 9, 128), Vector3.new(24, 9, 128), 3)
+
+	----------------------------------------------------------------
+	-- per-plot: entry arch, hedge border, flowers, corner shade trees
+	----------------------------------------------------------------
+	for _, plot in ipairs(plots:GetChildren()) do
+		local floor = plot:FindFirstChild("PlotFloor")
+		if not floor then
+			continue
+		end
+		local fp = floor.CFrame.Position
+		local fx, fz = fp.X, fp.Z
+		local side = fx < 0 and -1 or 1
+		local edgeX = fx - side * 25 -- inner (road-facing) edge
+		local yaw = side < 0 and -math.pi / 2 or math.pi / 2
+		local num = plot.Name:match("%d+") or "?"
+
+		local archCf = CFrame.new(edgeX, 1, fz) * CFrame.Angles(0, yaw, 0)
+		ParkKit.plotArch(garden, archCf, num, 900 + (tonumber(num) or 0))
+		ParkKit.path(garden, CFrame.new(edgeX - side * 6, 1, fz), 14, 9)
+
+		for _, dz in ipairs({ 13, -13 }) do
+			ParkKit.hedge(garden, CFrame.new(edgeX, 1, fz + dz) * CFrame.Angles(0, math.pi / 2, 0), 14, 3)
+			ParkKit.flowerBed(garden, CFrame.new(edgeX - side * 2.5, 1, fz + dz), 4, 3, fz + dz)
+		end
+		for _, dz in ipairs({ 20, -20 }) do
+			ParkKit.tree(garden, CFrame.new(fx - side * 27, 1, fz + dz), { seed = 950 + fz + dz, height = 12 })
+		end
 	end
 
-	-- a few storefronts along the far edge so the plaza feels enclosed
-	for i, x in ipairs({ -40, 0, 40 }) do
-		CityKit.building(dressing, {
-			cf = CFrame.new(x, 1, 144),
-			width = 32,
-			depth = 18,
-			floors = 3,
-			seed = 700 + i,
-		})
+	----------------------------------------------------------------
+	-- cross gardens between the plot rows
+	----------------------------------------------------------------
+	-- Row A / B (Z 0): a pond with a footbridge on the west, picnic lawn east
+	ParkKit.path(garden, CFrame.new(0, 1, 0) * CFrame.Angles(0, math.pi / 2, 0), 8, 132)
+	ParkKit.pond(garden, CFrame.new(-40, 1, 0), 26, 15, 21)
+	ParkKit.bridge(garden, CFrame.new(-40, 1, 0) * CFrame.Angles(0, math.pi / 2, 0), 20)
+	for _, dz in ipairs({ -6, 6 }) do
+		ParkKit.tree(garden, CFrame.new(-58, 1, dz), { seed = 300 + dz, height = 13 })
+	end
+	ParkKit.picnicTable(garden, CFrame.new(40, 1, -4))
+	ParkKit.picnicTable(garden, CFrame.new(48, 1, 6))
+	ParkKit.tree(garden, CFrame.new(40, 1, 8), { seed = 311, height = 14 })
+	ParkKit.bench(garden, CFrame.new(56, 1, 0) * CFrame.Angles(0, -math.pi / 2, 0))
+	ParkKit.lamp(garden, CFrame.new(-16, 1, 0))
+	ParkKit.lamp(garden, CFrame.new(16, 1, 0))
+
+	-- Row B / C (Z -80): a vine pergola over the path, a gazebo on the west
+	ParkKit.path(garden, CFrame.new(0, 1, -80) * CFrame.Angles(0, math.pi / 2, 0), 8, 132)
+	ParkKit.pergola(garden, CFrame.new(0, 1, -80), 56)
+	for _, dx in ipairs({ -22, 22 }) do
+		ParkKit.bench(garden, CFrame.new(dx, 1, -84))
+		ParkKit.flowerBed(garden, CFrame.new(dx, 1, -76), 6, 3, 400 + dx)
+	end
+	ParkKit.gazebo(garden, CFrame.new(-56, 1, -80))
+	ParkKit.stringLights(garden, Vector3.new(-56, 12, -80), Vector3.new(-30, 8, -80), 2)
+	ParkKit.picnicTable(garden, CFrame.new(54, 1, -80))
+	for _, dz in ipairs({ -12, 12 }) do
+		ParkKit.tree(garden, CFrame.new(56, 1, -80 + dz), { seed = 420 + dz, height = 13 })
 	end
 
-	-- string lights across the plaza
-	for _, x in ipairs({ -30, 30 }) do
-		CityKit.part(dressing, { Name = "BannerPole", Size = Vector3.new(0.5, 16, 0.5), CFrame = CFrame.new(x, 9, 105), Color = P.Metal, Material = Enum.Material.Metal })
+	----------------------------------------------------------------
+	-- south sitting garden (behind plots 5 & 6, the old dead end)
+	----------------------------------------------------------------
+	ParkKit.path(garden, CFrame.new(0, 1, -166), 10, 34)
+	ParkKit.birdbath(garden, CFrame.new(0, 1, -182))
+	for i = 0, 3 do
+		local a = math.rad(i * 90 + 45)
+		ParkKit.bench(garden, CFrame.new(math.cos(a) * 10, 1, -182 + math.sin(a) * 10) * CFrame.Angles(0, -a + math.pi / 2, 0))
 	end
-	for x = -28, 28, 4 do
-		local sag = 3 * math.cos(x / 28 * (math.pi / 2))
-		CityKit.part(dressing, {
-			Name = "Bulb",
-			Shape = Enum.PartType.Ball,
-			Size = Vector3.new(0.6, 0.6, 0.6),
-			CFrame = CFrame.new(x, 15 - (3 - sag), 105),
-			Color = P.LampWarm,
-			Material = Enum.Material.Neon,
-			CanCollide = false,
-		})
+	for _, dx in ipairs({ -16, 0, 16 }) do
+		ParkKit.tree(garden, CFrame.new(dx * 1.4, 1, -196), { seed = 500 + dx, height = 15, blossom = dx == 0 })
+		ParkKit.flowerBed(garden, CFrame.new(dx, 1, -174), 5, 3, 510 + dx)
+	end
+	ParkKit.stringLights(garden, Vector3.new(-12, 8, -182), Vector3.new(12, 8, -182), 2.5)
+
+	----------------------------------------------------------------
+	-- perimeter: shade trees, then a soft treeline + rolling hills
+	----------------------------------------------------------------
+	for z = -190, 70, 30 do
+		ParkKit.tree(garden, CFrame.new(-82, 1, z), { seed = 600 + z, height = 14 })
+		ParkKit.tree(garden, CFrame.new(82, 1, z), { seed = 660 + z, height = 14 })
+		if z % 60 == 10 then
+			ParkKit.bench(garden, CFrame.new(-80, 1, z) * CFrame.Angles(0, math.pi / 2, 0))
+			ParkKit.bench(garden, CFrame.new(80, 1, z) * CFrame.Angles(0, -math.pi / 2, 0))
+		end
+	end
+	ParkKit.treeline(garden, CFrame.new(-110, 1, -60) * CFrame.Angles(0, math.pi / 2, 0), 300, 7, 2, 71)
+	ParkKit.treeline(garden, CFrame.new(110, 1, -60) * CFrame.Angles(0, -math.pi / 2, 0), 300, 7, 2, 72)
+	ParkKit.treeline(garden, CFrame.new(0, 1, -220), 320, 8, 2, 73)
+	ParkKit.treeline(garden, CFrame.new(0, 1, 250) * CFrame.Angles(0, math.pi, 0), 320, 8, 2, 74)
+	for _, h in ipairs({ { -150, -120, 40 }, { 150, -60, 46 }, { -140, 90, 38 }, { 120, 180, 44 }, { -40, -230, 50 } }) do
+		ParkKit.hill(garden, CFrame.new(h[1], 1, h[2]), h[3] * 2.2, h[3] * 2, h[3] * 0.5)
 	end
 
-	-- soft skyline so the hub isn't floating in void either
-	CityKit.skyline(dressing, { origin = CFrame.new(0, 1, 230) * CFrame.Angles(0, math.pi, 0), rows = 2, perRow = 8, spanX = 420, rowGap = 34, minH = 45, maxH = 120, seed = 61 })
-	CityKit.skyline(dressing, { origin = CFrame.new(0, 1, -210), rows = 2, perRow = 7, spanX = 380, rowGap = 32, minH = 40, maxH = 110, seed = 62 })
+	----------------------------------------------------------------
+	-- airport: keep it functional, just soften the edges
+	----------------------------------------------------------------
+	for _, dx in ipairs({ -30, 30 }) do
+		ParkKit.tree(garden, CFrame.new(dx, 1, 178), { seed = 700 + dx, height = 12 })
+		ParkKit.planter(garden, CFrame.new(dx * 0.4, 1, 150), 720 + dx)
+	end
+	ParkKit.bench(garden, CFrame.new(-14, 1, 150))
+	ParkKit.bench(garden, CFrame.new(14, 1, 150))
 end
 
 ----------------------------------------------------------------
--- Plots: one warm light each so restaurants read at dusk
+-- Plots: one warm light each so restaurants read at golden hour
 ----------------------------------------------------------------
 
 local function lightPlots()
