@@ -1,12 +1,4 @@
 local ProximityPromptService = game:GetService("ProximityPromptService")
-local ServerScriptService = game:GetService("ServerScriptService")
-
-local Economy = require(ServerScriptService.Modules.Economy)
-local Shop = require(ServerScriptService.Modules.Shop)
-local Upgrades = require(ServerScriptService.Modules.Upgrades)
-local PlotUtils = require(ServerScriptService.Modules.PlotUtils)
-
-local plotsFolder = game:GetService("Workspace"):WaitForChild("Plots")
 
 -- Creates the "bring it back to the restaurant" item: a simple carryable Tool
 -- tagged with the food's identity, so a future Menu Editor interaction can
@@ -71,18 +63,12 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
 	if bitesRemaining <= 0 then
 		local displayName = food:GetAttribute("DisplayName") or food:GetAttribute("FoodName") or "food"
 		local rarity = food:GetAttribute("Rarity") or "Common"
-		local plot = PlotUtils.getPlotForPlayer(plotsFolder, player)
-		local tipMultiplier = plot and Upgrades.GetTipMultiplier(plot) or 1
-		local value = (food:GetAttribute("BaseRestaurantValue") or 0) * (food:GetAttribute("ValueMultiplier") or 1) * tipMultiplier * Shop.GetMoneyMultiplier(player)
-		value = math.floor(value + 0.5)
 
-		-- Placeholder economy: award money immediately on eating. Once the real
-		-- serve-customers loop exists, this is where we'd instead just grant the
-		-- item and let the menu/customer system pay out.
-		Economy.Add(player, value)
+		-- Eating a pizza only earns you the menu item - the money comes from
+		-- customers buying it off your menu (see CustomerSystem).
 		grantFoodItem(player, food)
 
-		print(player.Name .. " finished eating " .. displayName .. " (" .. rarity .. ") - earned " .. tostring(value) .. ", received 1x " .. displayName .. " item")
+		print(player.Name .. " finished eating " .. displayName .. " (" .. rarity .. ") - received 1x " .. displayName .. " item")
 
 		food:Destroy()
 		return

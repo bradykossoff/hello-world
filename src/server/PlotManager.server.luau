@@ -30,6 +30,10 @@ end
 
 local plotsFolder = Workspace:WaitForChild("Plots")
 
+-- Seed money for a brand-new player, enough to stock a few starter pizzas
+-- before customers start paying out.
+local STARTING_MONEY = 250
+
 -- Tracks each player's CharacterAdded connection so we can tear it down when
 -- they lose their plot (leaving, or later: switching plots).
 local spawnConnections = {}
@@ -108,7 +112,7 @@ end
 
 local function loadPlayerData(userId)
 	local defaults = defaultUpgradeData()
-	defaults.Money = 0
+	defaults.Money = STARTING_MONEY
 	defaults.Menu = {}
 
 	if not restaurantStore then

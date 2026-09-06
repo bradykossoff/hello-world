@@ -143,7 +143,7 @@ end
 -- One customer's full visit: walk in, sit, eat, pay, walk out. Runs as its own
 -- task so every free seat can be filled by a different customer at the same
 -- time, instead of the whole plot waiting on one guest.
-local function runCustomerVisit(plot, tbl, chair, menuItem, ownerUserId)
+local function runCustomerVisit(plot, tbl, chair, order, ownerUserId)
 	local building = plot.Stage1Building
 	local entranceMarker = building:FindFirstChild("EntranceMarker")
 
@@ -170,9 +170,9 @@ local function runCustomerVisit(plot, tbl, chair, menuItem, ownerUserId)
 
 	task.wait(getEatTime(plot))
 
-	local displayName = menuItem:GetAttribute("DisplayName") or "food"
+	local displayName = order.DisplayName
 	local player = Players:GetPlayerByUserId(ownerUserId)
-	local baseValue = (menuItem:GetAttribute("BaseRestaurantValue") or 0) * (menuItem:GetAttribute("ValueMultiplier") or 1)
+	local baseValue = order.BaseRestaurantValue * order.ValueMultiplier
 	local value = baseValue * Upgrades.GetTipMultiplier(plot) * (player and Shop.GetMoneyMultiplier(player) or 1)
 	value = math.floor(value + 0.5)
 
@@ -203,9 +203,16 @@ local function runCustomerLoop(plot)
 
 			if tbl and chair and menuItem then
 				-- Mark occupied immediately (synchronously) so the next loop
-				-- iteration can't also grab this same seat.
+				-- iteration can't also grab this same seat. Snapshot the menu
+				-- item's values now, since the player can swap it out while the
+				-- customer is still eating.
 				chair:SetAttribute("Occupied", true)
-				task.spawn(runCustomerVisit, plot, tbl, chair, menuItem, ownerUserId)
+				local order = {
+					DisplayName = menuItem:GetAttribute("DisplayName") or "food",
+					BaseRestaurantValue = menuItem:GetAttribute("BaseRestaurantValue") or 0,
+					ValueMultiplier = menuItem:GetAttribute("ValueMultiplier") or 1,
+				}
+				task.spawn(runCustomerVisit, plot, tbl, chair, order, ownerUserId)
 			end
 		end
 	end
