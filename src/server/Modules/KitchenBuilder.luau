@@ -61,6 +61,15 @@ function KitchenBuilder.SetStage(plot, stage)
 
 	local model = master:Clone()
 	model.Name = "Restaurant"
+
+	-- Set the pivot explicitly: the PrimaryPart Ref inside a Rojo-synced model
+	-- file doesn't always survive, and without it PivotTo falls back to the
+	-- bounding-box centre and drops the building several studs into the floor.
+	local base = model:FindFirstChild("Base")
+	if base then
+		model.PrimaryPart = base
+	end
+
 	model:PivotTo(anchor.CFrame)
 	model.Parent = plot
 
