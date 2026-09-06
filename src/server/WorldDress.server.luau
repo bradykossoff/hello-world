@@ -1,7 +1,8 @@
--- Dusk-city dressing pass. Runs once on server start:
---   * sets a shared golden-hour / dusk Lighting rig
---   * builds the New York street block (roads, sidewalks, buildings, skyline,
---     props) around the fixed anchors from eattheworld.rbxl
+-- World dressing pass. Runs once on server start:
+--   * sets a shared bright golden-hour Lighting rig
+--   * builds the compact New York street block (road, sidewalks, buildings,
+--     shallow skyline, props) around the fixed anchors from eattheworld.rbxl -
+--     kept small on purpose: every future destination needs its own space
 --   * a lighter cleanup pass over the hub / plaza
 --   * game-wide: stops every world BillboardGui from punching through the map
 --     and fades it with distance
@@ -17,66 +18,62 @@ local CityKit = require(ServerScriptService.Modules.CityKit)
 local P = CityKit.Palette
 
 ----------------------------------------------------------------
--- Lighting: shared dusk
+-- Lighting: shared bright golden hour (warm, but clearly lit)
 ----------------------------------------------------------------
 
-local function applyDuskLighting()
-	Lighting.ClockTime = 18.4
-	Lighting.GeographicLatitude = 41
-	Lighting.Brightness = 2.2
-	Lighting.ExposureCompensation = 0.1
-	Lighting.Ambient = Color3.fromRGB(56, 52, 68)
-	Lighting.OutdoorAmbient = Color3.fromRGB(92, 82, 108)
-	Lighting.ColorShift_Top = Color3.fromRGB(255, 158, 104)
-	Lighting.ColorShift_Bottom = Color3.fromRGB(78, 84, 128)
-	Lighting.EnvironmentDiffuseScale = 0.55
-	Lighting.EnvironmentSpecularScale = 0.55
+local function applyGoldenHour()
+	Lighting.ClockTime = 17.1
+	Lighting.GeographicLatitude = 18
+	Lighting.Brightness = 3.4
+	Lighting.ExposureCompensation = 0.28
+	Lighting.Ambient = Color3.fromRGB(132, 126, 132)
+	Lighting.OutdoorAmbient = Color3.fromRGB(178, 164, 152)
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 206, 156)
+	Lighting.ColorShift_Bottom = Color3.fromRGB(158, 168, 196)
+	Lighting.EnvironmentDiffuseScale = 0.9
+	Lighting.EnvironmentSpecularScale = 0.85
 	Lighting.FogEnd = 9000
 
-	-- procedural dusk sky reads the ClockTime; a baked daytime skybox would not
+	-- procedural sky follows ClockTime; a baked daytime skybox would fight it
 	local sky = Lighting:FindFirstChildOfClass("Sky")
 	if sky then
 		sky:Destroy()
 	end
 
 	local atmos = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
-	atmos.Density = 0.34
-	atmos.Offset = 0.15
-	atmos.Color = Color3.fromRGB(199, 176, 168)
-	atmos.Decay = Color3.fromRGB(92, 84, 120)
-	atmos.Glare = 0.22
-	atmos.Haze = 2.6
+	atmos.Density = 0.16
+	atmos.Offset = 0.1
+	atmos.Color = Color3.fromRGB(220, 206, 194)
+	atmos.Decay = Color3.fromRGB(150, 140, 155)
+	atmos.Glare = 0.08
+	atmos.Haze = 0.9
 	atmos.Parent = Lighting
 
 	local bloom = Lighting:FindFirstChildOfClass("BloomEffect") or Instance.new("BloomEffect")
-	bloom.Intensity = 0.9
-	bloom.Size = 20
-	bloom.Threshold = 1.0
+	bloom.Intensity = 0.5
+	bloom.Size = 24
+	bloom.Threshold = 1.5
 	bloom.Parent = Lighting
 
 	local dof = Lighting:FindFirstChildOfClass("DepthOfFieldEffect")
 	if dof then
-		dof.FarIntensity = 0.12
-		dof.FocusDistance = 45
-		dof.InFocusRadius = 70
+		dof.FarIntensity = 0
 		dof.NearIntensity = 0
 	end
 
 	local sun = Lighting:FindFirstChildOfClass("SunRaysEffect")
 	if sun then
-		sun.Intensity = 0.11
-		sun.Spread = 0.9
+		sun.Intensity = 0.08
+		sun.Spread = 0.8
 	end
 
-	if not Lighting:FindFirstChild("CityGrade") then
-		local cc = Instance.new("ColorCorrectionEffect")
-		cc.Name = "CityGrade"
-		cc.Brightness = 0
-		cc.Contrast = 0.1
-		cc.Saturation = 0.06
-		cc.TintColor = Color3.fromRGB(255, 238, 224)
-		cc.Parent = Lighting
-	end
+	local cc = Lighting:FindFirstChild("CityGrade") or Instance.new("ColorCorrectionEffect")
+	cc.Name = "CityGrade"
+	cc.Brightness = 0.02
+	cc.Contrast = 0.06
+	cc.Saturation = 0.14
+	cc.TintColor = Color3.fromRGB(255, 246, 236)
+	cc.Parent = Lighting
 end
 
 ----------------------------------------------------------------
@@ -120,32 +117,35 @@ local function buildNewYork()
 	local newYork = Workspace:WaitForChild("Destinations"):WaitForChild("NewYork")
 	local city = freshFolder(newYork, "City")
 
-	-- base slab filling the void beyond the hand-built ground
+	-- one compact block. Kept small on purpose: every future destination needs
+	-- its own pocket of world space, so New York is ~200 x 150 playable with a
+	-- shallow skyline backdrop, not a sprawling grid.
+	local HALF = 160 -- half-width of the paved surface
+
 	CityKit.part(city, {
 		Name = "CityBase",
-		Size = Vector3.new(680, 4, 380),
-		CFrame = CFrame.new(0, -2.25, 1210),
-		Color = Color3.fromRGB(22, 22, 28),
+		Size = Vector3.new(HALF * 2 + 20, 4, 210),
+		CFrame = CFrame.new(0, -2.25, 1195),
+		Color = Color3.fromRGB(60, 58, 66),
 		Material = Enum.Material.Concrete,
 	})
 
 	-- road
 	CityKit.part(city, {
 		Name = "Road",
-		Size = Vector3.new(680, 0.4, 30),
+		Size = Vector3.new(HALF * 2, 0.4, 30),
 		CFrame = CFrame.new(0, -0.12, NY_ROAD_Z),
-		Color = P.AsphaltWet,
+		Color = P.Asphalt,
 		Material = Enum.Material.Asphalt,
-		Reflectance = 0.08,
+		Reflectance = 0.03,
 	})
-	stripe(city, CFrame.new(0, 0.02, NY_ROAD_Z - 0.5), Vector3.new(680, 0.06, 0.4), P.LineYellow)
-	stripe(city, CFrame.new(0, 0.02, NY_ROAD_Z + 0.5), Vector3.new(680, 0.06, 0.4), P.LineYellow)
-	for x = -330, 330, 14 do
+	stripe(city, CFrame.new(0, 0.02, NY_ROAD_Z - 0.5), Vector3.new(HALF * 2, 0.06, 0.4), P.LineYellow)
+	stripe(city, CFrame.new(0, 0.02, NY_ROAD_Z + 0.5), Vector3.new(HALF * 2, 0.06, 0.4), P.LineYellow)
+	for x = -HALF + 10, HALF - 10, 14 do
 		stripe(city, CFrame.new(x, 0.02, NY_ROAD_Z - 7), Vector3.new(7, 0.06, 0.4), P.LineWhite)
 		stripe(city, CFrame.new(x, 0.02, NY_ROAD_Z + 7), Vector3.new(7, 0.06, 0.4), P.LineWhite)
 	end
-	-- crosswalks
-	for _, cx in ipairs({ -25, 25 }) do
+	for _, cx in ipairs({ -22, 22 }) do
 		for z = NY_ROAD_Z - 13, NY_ROAD_Z + 13, 1.6 do
 			stripe(city, CFrame.new(cx, 0.02, z), Vector3.new(5, 0.06, 0.8), P.LineWhite)
 		end
@@ -153,105 +153,102 @@ local function buildNewYork()
 
 	-- sidewalks + curbs
 	for _, walk in ipairs({
-		{ z = NY_NORTH_WALK, curbZ = NY_NORTH_WALK - 7, curbFace = 1 },
-		{ z = NY_SOUTH_WALK, curbZ = NY_SOUTH_WALK + 7, curbFace = -1 },
+		{ z = NY_NORTH_WALK, curbZ = NY_NORTH_WALK - 7 },
+		{ z = NY_SOUTH_WALK, curbZ = NY_SOUTH_WALK + 7 },
 	}) do
 		CityKit.part(city, {
 			Name = "Sidewalk",
-			Size = Vector3.new(680, 0.5, 16),
+			Size = Vector3.new(HALF * 2, 0.5, 16),
 			CFrame = CFrame.new(0, -0.25, walk.z),
 			Color = P.Sidewalk,
 			Material = Enum.Material.Concrete,
 		})
 		CityKit.part(city, {
 			Name = "Curb",
-			Size = Vector3.new(680, 0.6, 0.8),
+			Size = Vector3.new(HALF * 2, 0.6, 0.8),
 			CFrame = CFrame.new(0, 0.1, walk.curbZ),
 			Color = P.Curb,
 			Material = Enum.Material.Concrete,
 		})
-		for x = -330, 330, 12 do
+		for x = -HALF + 10, HALF - 10, 12 do
 			stripe(city, CFrame.new(x, 0.04, walk.z), Vector3.new(0.15, 0.05, 16), P.SidewalkJoint)
 		end
 	end
 
-	-- north building row (faces -Z / the street), with an alley gap at the centre
+	-- north building row (faces the street), alley gap at the centre
 	local northRng = Random.new(4021)
-	local northX = -170
+	local northX = -80
 	local idx = 0
-	while northX < 175 do
+	while northX < 80 do
 		idx += 1
-		local w = northRng:NextInteger(30, 44)
-		if math.abs(northX + w / 2) < 12 then
-			northX = 14 -- leave a 16-wide alley slot around x=0
+		local w = northRng:NextInteger(20, 28)
+		if math.abs(northX + w / 2) < 9 then
+			northX = 9
 		end
-		local floors = northRng:NextInteger(4, 9)
+		local floors = northRng:NextInteger(3, 6)
 		CityKit.building(city, {
 			cf = CFrame.new(northX + w / 2, 0, NY_NORTH_FACE) * CFrame.Angles(0, math.pi, 0),
 			width = w,
-			depth = northRng:NextInteger(22, 30),
+			depth = northRng:NextInteger(14, 20),
 			floors = floors,
 			seed = 100 + idx,
-			shop = nil,
 			fireEscape = northRng:NextNumber() < 0.5,
-			water = northRng:NextNumber() < 0.4,
-			setback = floors >= 7 and northRng:NextNumber() < 0.5,
+			water = northRng:NextNumber() < 0.35,
+			setback = floors >= 5 and northRng:NextNumber() < 0.5,
 		})
-		northX += w + northRng:NextInteger(0, 3)
+		northX += w + northRng:NextInteger(1, 3)
 	end
 
 	-- alley behind the gap
 	local alley = Instance.new("Model")
 	alley.Name = "Alley"
 	alley.Parent = city
-	CityKit.part(alley, { Name = "AlleyFloor", Size = Vector3.new(16, 0.4, 40), CFrame = CFrame.new(3, -0.15, NY_NORTH_FACE + 20), Color = Color3.fromRGB(30, 30, 34), Material = Enum.Material.Asphalt })
-	for _, sx in ipairs({ -8, 14 }) do
-		CityKit.part(alley, { Name = "AlleyWall", Size = Vector3.new(1, 40, 40), CFrame = CFrame.new(3 + sx, 20, NY_NORTH_FACE + 20), Color = P.BrickRed:Lerp(Color3.new(0, 0, 0), 0.3), Material = Enum.Material.Brick })
+	CityKit.part(alley, { Name = "AlleyFloor", Size = Vector3.new(12, 0.4, 26), CFrame = CFrame.new(2, -0.15, NY_NORTH_FACE + 14), Color = Color3.fromRGB(70, 68, 74), Material = Enum.Material.Asphalt })
+	for _, sx in ipairs({ -6, 10 }) do
+		CityKit.part(alley, { Name = "AlleyWall", Size = Vector3.new(1, 30, 26), CFrame = CFrame.new(2 + sx, 15, NY_NORTH_FACE + 14), Color = P.BrickRed:Lerp(Color3.new(0, 0, 0), 0.15), Material = Enum.Material.Brick })
 	end
-	CityKit.part(alley, { Name = "Dumpster", Size = Vector3.new(6, 3, 3), CFrame = CFrame.new(0, 1.5, NY_NORTH_FACE + 12), Color = Color3.fromRGB(40, 74, 54), Material = Enum.Material.DiamondPlate })
-	local alleyNeon = CityKit.part(alley, { Name = "AlleyNeon", Size = Vector3.new(0.5, 3, 0.5), CFrame = CFrame.new(-4, 8, NY_NORTH_FACE + 6), Color = P.NeonPink, Material = Enum.Material.Neon })
-	CityKit.light(alleyNeon, { Color = P.NeonPink, Range = 14, Brightness = 1.4 })
-	CityKit.steamVent(alley, CFrame.new(3, 0, NY_NORTH_FACE + 26))
+	CityKit.part(alley, { Name = "Dumpster", Size = Vector3.new(5, 3, 3), CFrame = CFrame.new(0, 1.5, NY_NORTH_FACE + 9), Color = Color3.fromRGB(56, 104, 74), Material = Enum.Material.DiamondPlate })
+	CityKit.steamVent(alley, CFrame.new(2, 0, NY_NORTH_FACE + 20))
 
-	-- south building row (faces +Z / the plaza), centre gap where players arrive
+	-- south building row (faces the plaza), centre gap where players arrive
 	local southRng = Random.new(9084)
-	local southX = -170
+	local southX = -80
 	idx = 0
-	while southX < 175 do
+	while southX < 80 do
 		idx += 1
-		local w = southRng:NextInteger(28, 40)
-		if math.abs(southX + w / 2) < 26 then
-			southX = 26
+		local w = southRng:NextInteger(18, 26)
+		if math.abs(southX + w / 2) < 18 then
+			southX = 18
 		end
 		CityKit.building(city, {
 			cf = CFrame.new(southX + w / 2, 0, NY_SOUTH_FACE),
 			width = w,
-			depth = southRng:NextInteger(18, 24),
-			floors = southRng:NextInteger(3, 6),
+			depth = southRng:NextInteger(12, 16),
+			floors = southRng:NextInteger(3, 5),
 			seed = 300 + idx,
-			storefront = southRng:NextNumber() < 0.6,
-			fireEscape = southRng:NextNumber() < 0.4,
-			water = southRng:NextNumber() < 0.3,
+			storefront = southRng:NextNumber() < 0.55,
+			fireEscape = southRng:NextNumber() < 0.35,
 		})
-		southX += w + southRng:NextInteger(1, 4)
+		southX += w + southRng:NextInteger(1, 3)
 	end
 
-	-- corner end-caps
-	CityKit.building(city, { cf = CFrame.new(-190, 0, 1195) * CFrame.Angles(0, math.rad(90), 0), width = 60, depth = 30, floors = 8, seed = 501, water = true, setback = true })
-	CityKit.building(city, { cf = CFrame.new(190, 0, 1195) * CFrame.Angles(0, math.rad(-90), 0), width = 60, depth = 30, floors = 9, seed = 502, water = true })
+	-- corner end-caps that turn the block
+	CityKit.building(city, { cf = CFrame.new(-96, 0, 1194) * CFrame.Angles(0, math.rad(90), 0), width = 40, depth = 22, floors = 6, seed = 501, water = true })
+	CityKit.building(city, { cf = CFrame.new(96, 0, 1194) * CFrame.Angles(0, math.rad(-90), 0), width = 40, depth = 22, floors = 6, seed = 502, setback = true })
 
-	-- distant skyline on all four sides, receding into the haze
-	CityKit.skyline(city, { origin = CFrame.new(0, 0, 1268) * CFrame.Angles(0, math.pi, 0), rows = 4, perRow = 10, spanX = 560, rowGap = 36, minH = 80, maxH = 250, seed = 11 })
-	CityKit.skyline(city, { origin = CFrame.new(0, 0, 1120), rows = 3, perRow = 9, spanX = 520, rowGap = 34, minH = 60, maxH = 180, seed = 22 })
-	CityKit.skyline(city, { origin = CFrame.new(-230, 0, 1200) * CFrame.Angles(0, math.rad(90), 0), rows = 2, perRow = 6, spanX = 340, rowGap = 34, minH = 70, maxH = 200, seed = 33 })
-	CityKit.skyline(city, { origin = CFrame.new(230, 0, 1200) * CFrame.Angles(0, math.rad(-90), 0), rows = 2, perRow = 6, spanX = 340, rowGap = 34, minH = 70, maxH = 210, seed = 44 })
+	-- shallow skyline backdrop; deliberately short so it doesn't loom over
+	-- neighbouring destinations
+	CityKit.skyline(city, { origin = CFrame.new(0, 0, 1250) * CFrame.Angles(0, math.pi, 0), rows = 2, perRow = 7, spanX = 300, rowGap = 30, minH = 55, maxH = 135, seed = 11 })
+	CityKit.skyline(city, { origin = CFrame.new(0, 0, 1118), rows = 1, perRow = 6, spanX = 260, rowGap = 26, minH = 45, maxH = 100, seed = 22 })
+	CityKit.skyline(city, { origin = CFrame.new(-140, 0, 1195) * CFrame.Angles(0, math.rad(90), 0), rows = 1, perRow = 4, spanX = 180, rowGap = 26, minH = 55, maxH = 120, seed = 33 })
+	CityKit.skyline(city, { origin = CFrame.new(140, 0, 1195) * CFrame.Angles(0, math.rad(-90), 0), rows = 1, perRow = 4, spanX = 180, rowGap = 26, minH = 55, maxH = 120, seed = 44 })
 
 	-- props along the sidewalks
 	local props = freshFolder(city, "Props")
-	local cartXs = { 0, -24, -46, 24 } -- keep clear of the food carts + their prompts
+	local cartXs = { 0, -24, -46, 24 }
 	local function nearCart(x)
 		for _, cx in ipairs(cartXs) do
-			if math.abs(x - cx) < 8 then
+			if math.abs(x - cx) < 9 then
 				return true
 			end
 		end
@@ -259,52 +256,42 @@ local function buildNewYork()
 	end
 
 	local postIdx = 0
-	for x = -153, 153, 34 do
+	for x = -72, 72, 24 do
 		postIdx += 1
-		local lit = postIdx % 2 == 1
-		-- north sidewalk: lampposts near the curb, clutter at the back wall
-		CityKit.lamppost(props, CFrame.new(x, 0, NY_NORTH_WALK - 5), lit)
+		-- south sidewalk (always clear of the carts)
+		CityKit.lamppost(props, CFrame.new(x, 0, NY_SOUTH_WALK + 5) * CFrame.Angles(0, math.pi, 0), postIdx % 3 == 1)
+		if postIdx % 2 == 0 then
+			CityKit.planter(props, CFrame.new(x, 0, NY_SOUTH_WALK - 5))
+		end
+		-- north sidewalk: skip anything that would collide with a food cart
 		if not nearCart(x) then
-			local roll = (x // 34) % 4
-			local backCf = CFrame.new(x + 6, 0, NY_NORTH_WALK + 5)
+			CityKit.lamppost(props, CFrame.new(x, 0, NY_NORTH_WALK - 5), postIdx % 3 == 2)
+			local roll = postIdx % 3
+			local backCf = CFrame.new(x + 5, 0, NY_NORTH_WALK + 5)
 			if roll == 0 then
 				CityKit.hydrant(props, backCf)
 			elseif roll == 1 then
 				CityKit.trashCan(props, backCf)
-			elseif roll == 2 then
-				CityKit.planter(props, backCf)
 			else
 				CityKit.bench(props, CFrame.new(x, 0, NY_NORTH_WALK + 5) * CFrame.Angles(0, math.pi, 0))
 			end
 		end
-		-- south sidewalk
-		CityKit.lamppost(props, CFrame.new(x, 0, NY_SOUTH_WALK + 5) * CFrame.Angles(0, math.pi, 0), not lit)
-		local sroll = (x // 34) % 3
-		if sroll == 0 then
-			CityKit.planter(props, CFrame.new(x, 0, NY_SOUTH_WALK - 5))
-		elseif sroll == 1 then
-			CityKit.trashCan(props, CFrame.new(x, 0, NY_SOUTH_WALK - 5))
-		end
 	end
 
-	for _, cx in ipairs({ -25, 25 }) do
+	for _, cx in ipairs({ -22, 22 }) do
 		CityKit.trafficLight(props, CFrame.new(cx - 4, 0, NY_ROAD_Z - 15))
 		CityKit.trafficLight(props, CFrame.new(cx + 4, 0, NY_ROAD_Z + 15) * CFrame.Angles(0, math.pi, 0))
 	end
 
-	-- parked taxis in the curb lanes
-	CityKit.taxi(props, CFrame.new(-64, 0, NY_ROAD_Z + 11) * CFrame.Angles(0, math.rad(90), 0))
-	CityKit.taxi(props, CFrame.new(58, 0, NY_ROAD_Z + 11) * CFrame.Angles(0, math.rad(-90), 0))
-	CityKit.taxi(props, CFrame.new(12, 0, NY_ROAD_Z - 11) * CFrame.Angles(0, math.rad(90), 0))
+	CityKit.taxi(props, CFrame.new(-44, 0, NY_ROAD_Z + 11) * CFrame.Angles(0, math.rad(90), 0))
+	CityKit.taxi(props, CFrame.new(40, 0, NY_ROAD_Z + 11) * CFrame.Angles(0, math.rad(-90), 0))
 
-	CityKit.steamVent(props, CFrame.new(-40, 0, NY_ROAD_Z))
-	CityKit.steamVent(props, CFrame.new(70, 0, NY_ROAD_Z + 3))
-
-	CityKit.busShelter(props, CFrame.new(-90, 0, NY_SOUTH_WALK - 5))
-	CityKit.scaffold(props, CFrame.new(120, 0, NY_NORTH_WALK + 2), 40)
+	CityKit.steamVent(props, CFrame.new(-30, 0, NY_ROAD_Z))
+	CityKit.busShelter(props, CFrame.new(-70, 0, NY_NORTH_WALK - 4))
+	CityKit.scaffold(props, CFrame.new(58, 0, NY_NORTH_WALK + 2), 24)
 
 	-- landmark + wayfinding
-	CityKit.bladeSign(props, CFrame.new(-30, 0, NY_SOUTH_WALK + 6), { "BROADWAY", "W 42 ST" })
+	CityKit.bladeSign(props, CFrame.new(-22, 0, NY_SOUTH_WALK + 6), { "BROADWAY", "W 42 ST" })
 	CityKit.subwayEntrance(props, CFrame.new(20, 0, 1162) * CFrame.Angles(0, math.pi, 0))
 
 	-- tidy the hand-built pieces
@@ -359,7 +346,7 @@ local function dressHub()
 		end
 	end
 	recolor("PlazaFloor", Color3.fromRGB(120, 110, 120), Enum.Material.Cobblestone)
-	recolor("MainRoad", P.AsphaltWet, Enum.Material.Asphalt)
+	recolor("MainRoad", P.Asphalt, Enum.Material.Asphalt)
 	recolor("PlazaAirportPath", Color3.fromRGB(120, 110, 120), Enum.Material.Cobblestone)
 	recolor("AirportFloor", Color3.fromRGB(70, 72, 80), Enum.Material.Concrete)
 
@@ -466,7 +453,7 @@ end
 
 ----------------------------------------------------------------
 
-applyDuskLighting()
+applyGoldenHour()
 tameBillboards()
 
 local ok, err = pcall(buildNewYork)

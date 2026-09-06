@@ -8,26 +8,26 @@
 local CityKit = {}
 
 local Palette = {
-	AsphaltWet = Color3.fromRGB(26, 26, 32),
-	Sidewalk = Color3.fromRGB(122, 120, 128),
-	SidewalkJoint = Color3.fromRGB(90, 88, 96),
-	Curb = Color3.fromRGB(84, 82, 90),
-	LineYellow = Color3.fromRGB(224, 184, 74),
-	LineWhite = Color3.fromRGB(206, 206, 212),
+	Asphalt = Color3.fromRGB(58, 58, 66),
+	Sidewalk = Color3.fromRGB(170, 166, 170),
+	SidewalkJoint = Color3.fromRGB(128, 124, 130),
+	Curb = Color3.fromRGB(120, 116, 122),
+	LineYellow = Color3.fromRGB(238, 198, 84),
+	LineWhite = Color3.fromRGB(222, 222, 226),
 
-	BrickRed = Color3.fromRGB(116, 60, 54),
-	BrickTan = Color3.fromRGB(160, 136, 108),
-	Limestone = Color3.fromRGB(146, 142, 136),
-	Concrete = Color3.fromRGB(92, 92, 102),
-	DarkFacade = Color3.fromRGB(66, 66, 80),
+	BrickRed = Color3.fromRGB(168, 92, 78),
+	BrickTan = Color3.fromRGB(206, 180, 146),
+	Limestone = Color3.fromRGB(214, 208, 196),
+	Concrete = Color3.fromRGB(150, 148, 156),
+	DarkFacade = Color3.fromRGB(120, 116, 132),
 
-	WindowWarm = Color3.fromRGB(255, 210, 138),
-	WindowCool = Color3.fromRGB(176, 200, 255),
-	WindowDark = Color3.fromRGB(36, 40, 56),
-	Glass = Color3.fromRGB(28, 38, 54),
+	WindowWarm = Color3.fromRGB(255, 224, 168),
+	WindowCool = Color3.fromRGB(196, 216, 255),
+	WindowDark = Color3.fromRGB(96, 110, 132),
+	Glass = Color3.fromRGB(120, 158, 182),
 
-	SkylineNear = Color3.fromRGB(62, 60, 84),
-	SkylineFar = Color3.fromRGB(48, 50, 74),
+	SkylineNear = Color3.fromRGB(120, 118, 150),
+	SkylineFar = Color3.fromRGB(150, 150, 176),
 
 	NeonPink = Color3.fromRGB(255, 92, 170),
 	NeonCyan = Color3.fromRGB(96, 232, 245),
@@ -356,7 +356,7 @@ function CityKit.skyline(parent, cfg)
 
 	CityKit.part(m, {
 		Name = "SkylineBase",
-		Size = Vector3.new(cfg.spanX + 200, 4, cfg.rows * cfg.rowGap + 80),
+		Size = Vector3.new(cfg.spanX + 40, 4, cfg.rows * cfg.rowGap + 60),
 		CFrame = cfg.origin * CFrame.new(0, -2, -(cfg.rows * cfg.rowGap) / 2),
 		Color = Color3.fromRGB(24, 24, 32),
 		CanCollide = false,
