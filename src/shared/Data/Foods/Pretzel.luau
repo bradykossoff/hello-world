@@ -1,44 +1,42 @@
 return {
-	Name = "Pizza",
-	Label = "Pizza",
+	Name = "Pretzel",
+	Label = "Pretzel",
 	Area = "New York",
-	Price = 50,
-	BaseRestaurantValue = 25,
-	BaseBites = 6,
-	-- Graybox shape the vendor spawns. Tilt lays the cylinder flat like a pie.
+	Price = 20,
+	BaseRestaurantValue = 10,
+	BaseBites = 3,
 	Model = {
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.6, 3, 3),
-		Tilt = CFrame.Angles(0, 0, math.rad(90)),
+		Shape = Enum.PartType.Block,
+		Size = Vector3.new(2.6, 2.6, 0.8),
 	},
 	Variants = {
 		Common = {
-			DisplayName = "Pizza",
+			DisplayName = "Soft Pretzel",
 			ValueMultiplier = 1,
-			Color = Color3.fromRGB(230, 200, 150),
+			Color = Color3.fromRGB(150, 95, 40),
 		},
 		Uncommon = {
-			DisplayName = "Extra Cheese Pizza",
+			DisplayName = "Salted Twist",
 			ValueMultiplier = 2,
 			Color = Color3.fromRGB(120, 220, 120),
 		},
 		Rare = {
-			DisplayName = "Pepperoni Deluxe Pizza",
+			DisplayName = "Cinnamon Sugar Pretzel",
 			ValueMultiplier = 5,
 			Color = Color3.fromRGB(100, 150, 255),
 		},
 		Epic = {
-			DisplayName = "Truffle Pizza",
+			DisplayName = "Cheddar-Stuffed Pretzel",
 			ValueMultiplier = 12,
 			Color = Color3.fromRGB(190, 100, 255),
 		},
 		Legendary = {
-			DisplayName = "Golden Pizza",
+			DisplayName = "Golden Knot",
 			ValueMultiplier = 30,
 			Color = Color3.fromRGB(255, 200, 40),
 		},
 		Secret = {
-			DisplayName = "Galaxy Pizza",
+			DisplayName = "Pretzel of the Void",
 			ValueMultiplier = 100,
 			Color = Color3.fromRGB(160, 60, 255),
 		},
